@@ -516,6 +516,293 @@ namespace ACTL {
 		size length = 0;
 	};
 
+	template <typename Type>
+	class List<Type&> {
+	public:
+		using NoRef = ACTL::NoReferenceType<Type>;
+
+		using PtrList = List<NoRef*>;
+
+		class Node {
+		public:
+			friend List;
+
+			Node(const Node&) = delete;
+
+			Node& operator =(const Node&) = delete;
+
+			NoRef& operator *() {
+				return *pointer;
+			}
+
+			const NoRef& operator *() const {
+				return *pointer;
+			}
+
+			NoRef* operator ->() {
+				return pointer;
+			}
+
+			const NoRef* operator ->() const {
+				return pointer;
+			}
+
+			bool hasNext() const {
+				return next;
+			}
+
+			bool hasPrev() const {
+				return prev;
+			}
+
+			operator NoRef& () {
+				return *pointer;
+			}
+
+			operator const NoRef& () const {
+				return *pointer;
+			}
+
+			Node* getNext() {
+				return next;
+			}
+
+			Node* getPrev() {
+				return prev;
+			}
+
+			const Node* getNext() const {
+				return next;
+			}
+
+			const Node* getPrev() const {
+				return prev;
+			}
+
+			Node& operator ++(int) {
+				return *next;
+			}
+
+			Node& operator --(int) {
+				return *prev;
+			}
+
+			Node& operator ++() {
+				return *next;
+			}
+
+			Node& operator --() {
+				return *prev;
+			}
+
+			const Node& operator ++(int) const {
+				return *next;
+			}
+
+			const Node& operator --(int) const {
+				return *prev;
+			}
+
+			const Node& operator ++() const {
+				return *next;
+			}
+
+			const Node& operator --() const {
+				return *prev;
+			}
+
+			Node& operator +(size count) {
+				Node* currNode = next;
+
+				count--;
+
+				while (count) {
+					currNode = currNode->next;
+
+					count--;
+				}
+
+				return *currNode;
+			}
+
+			Node& operator -(size count) {
+				Node* currNode = prev;
+
+				count--;
+
+				while (count) {
+					currNode = currNode->prev;
+
+					count--;
+				}
+
+				return *currNode;
+			}
+
+			const Node& operator +(size count) const {
+				const Node* currNode = next;
+
+				count--;
+
+				while (count) {
+					currNode = currNode->next;
+
+					count--;
+				}
+
+				return *currNode;
+			}
+
+			const Node& operator -(size count) const {
+				const Node* currNode = prev;
+
+				count--;
+
+				while (count) {
+					currNode = currNode->prev;
+
+					count--;
+				}
+
+				return *currNode;
+			}
+
+		private:
+			using Ptr = List::PtrList::Node;
+
+			Node* prev = nullptr, * next = nullptr;
+
+			NoRef* pointer = nullptr;
+
+			Node(NoRef* pointer) : pointer(pointer) {};
+		};
+
+		List() {};
+
+		List(const List& Other) {
+			operator=(Other);
+		}
+
+		List(List&& Other) noexcept {
+			operator=(ACTL::move(Other));
+		}
+
+		List& operator =(const List& Other) {
+			pointers = Other.pointers;
+
+			return *this;
+		}
+
+		List& operator =(List&& Other) noexcept {
+			pointers = ACTL::move(Other.pointers);
+
+			return *this;
+		}
+
+		Node& First() {
+			return (Node&)pointers.First();
+		}
+
+		const Node& First() const {
+			return (const Node&)pointers.First();
+		}
+
+		Node& Last() {
+			return (Node&)pointers.Last();
+		}
+
+		const Node& Last() const {
+			return (const Node&)pointers.Last();
+		}
+
+		Node& operator [](size index) {
+			return (Node&)pointers[index];
+		}
+
+		const Node& operator [](size index) const {
+			return (const Node&)pointers[index];
+		}
+
+		Node& EmplaceBack(NoRef& reference) {
+			return (Node&)pointers.EmplaceBack(&reference);
+		}
+
+		Node& EmplaceFront(NoRef& reference) {
+			return (Node&)pointers.EmplaceFront(&reference);
+		}
+
+		Node& EmplaceAfter(const Node& After, NoRef& reference) {
+			return (Node&)pointers.EmplaceAfter((typename Node::Ptr&)After, &reference);
+		}
+
+		Node& EmplaceBefore(const Node& Before, NoRef& reference) {
+			return (Node&)pointers.EmplaceBefore((typename Node::Ptr&)Before, &reference);
+		}
+
+		void EraseBack() {
+			pointers.EraseBack();
+		}
+
+		void EraseFront() {
+			pointers.EraseFront();
+		}
+
+		void Erase(const Node& Target) {
+			pointers.Erase((typename Node::Ptr&)Target);
+		}
+
+		size getLength() const {
+			return pointers.getLength();
+		}
+
+		bool isEmpty() const {
+			return pointers.isEmpty();
+		}
+
+		operator bool() const {
+			return pointers.operator bool();
+		}
+
+		template <typename Func>
+		void Foreach(Func func) {
+			if (isEmpty())
+				return;
+
+			Node* CurrNode = &First();
+
+			size i = 0;
+
+			while (CurrNode) {
+				func(*CurrNode, i);
+
+				CurrNode = CurrNode->getNext();
+
+				i++;
+			}
+		}
+
+		template <typename Func>
+		void Foreach(Func func) const {
+			if (isEmpty())
+				return;
+
+			const Node* CurrNode = &First();
+
+			size i = 0;
+
+			while (CurrNode) {
+				func(*CurrNode, i);
+
+				CurrNode = CurrNode->getNext();
+
+				i++;
+			}
+		}
+
+	private:
+		PtrList pointers = {};
+	};
+
 #ifdef ACTL_STD_INCLUDED_IOSTREAM
 	template <typename Char, typename Type>
 	std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const typename List<Type>::Node& Node) {

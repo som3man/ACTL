@@ -232,6 +232,14 @@ namespace ACTL {
 			return first != last;
 		}
 
+		operator Type* () noexcept {
+			return first;
+		}
+
+		operator const Type* () const noexcept {
+			return first;
+		}
+
 		// Normalizes value to Array`s bounds. Returns nullindex if Array is empty.
 		size ToRange(i64 index) const noexcept {
 			if (isEmpty())
@@ -410,6 +418,7 @@ namespace ACTL {
 			}
 		}
 
+		// Searches for index of a member which has same value. Returns nullindex if theres no member with given value.
 		size GetIndex(const Type& value) const {
 			for (int i = 0; i < GetLength(); i++)
 				if (first[i] == value)
@@ -418,6 +427,7 @@ namespace ACTL {
 			return nullindex;
 		}
 
+		// Returns true if Target is in this Array.
 		bool Contains(const Type& Target) const noexcept {
 			return (&Target >= first) && (&Target < last);
 		}
@@ -472,6 +482,170 @@ namespace ACTL {
 		}
 	};
 
+	template <typename Type>
+	class Array<Type&> {
+	private:
+		using NoRef = ACTL::NoReferenceType<Type>;
+
+	public:
+		class Reference {
+		public:
+			friend Array;
+
+			~Reference() {};
+
+			operator NoRef&() {
+				return *pointer;
+			}
+
+			operator const NoRef& () const  {
+				return *pointer;
+			}
+
+		private:
+			NoRef* pointer = nullptr;
+
+			Reference(NoRef* pointer) : pointer(pointer) {};
+		};
+
+		Array() {};
+
+		Array(size newCapacity) {
+			operator=(newCapacity);
+		}
+
+		Array(const Array& Other) {
+			operator=(Other);
+		}
+
+		Array(Array&& Other) {
+			operator=(ACTL::move(Other));
+		}
+
+		~Array() noexcept {};
+
+		Array& operator =(size newCapacity) {
+			pointers = newCapacity;
+
+			return *this;
+		}
+
+		Array& operator =(const Array& Other) {
+			pointers = Other.pointers;
+
+			return *this;
+		}
+
+		Array& operator =(Array&& Other) noexcept {
+			pointers = ACTL::move(Other.pointers);
+
+			return *this;
+		}
+
+		void Delete() {
+			pointers.Delete();
+		}
+
+		void Clear() {
+			pointers.Clear();
+		}
+
+		size ToRange(ACTL::i64 index) const {
+			return pointers.ToRange(index);
+		}
+
+		NoRef& operator [](size index) noexcept {
+			return *pointers[index];
+		}
+
+		const NoRef& operator [](size index) const noexcept {
+			return *pointers[index];
+		}
+
+		Reference* begin() noexcept {
+			return (Reference*)pointers.begin();
+		}
+
+		const Reference* begin() const noexcept {
+			return (const Reference*)pointers.begin();
+		}
+
+		Reference* end() noexcept {
+			return (Reference*)pointers.end();
+		}
+
+		const Reference* end() const noexcept {
+			return (const Reference*)pointers.end();
+		}
+
+		operator bool() const noexcept {
+			return pointers.operator bool();
+		}
+
+		operator NoRef** () noexcept {
+			return pointers;
+		}
+
+		operator NoRef* const * () const noexcept {
+			return pointers;
+		}
+
+		size GetLength() const {
+			return pointers.GetLength();
+		}
+
+		size GetCapacity() const {
+			return pointers.GetCapacity();
+		}
+
+		size GetSize() const {
+			return pointers.GetSize();
+		}
+
+		void SetCapacity(size newCapacity) {
+			return pointers.SetCapacity(newCapacity);
+		}
+
+		void ShrinkToFit() {
+			pointers.ShrinkToFit();
+		}
+
+		void EmplaceBack(NoRef& reference) {
+			pointers.EmplaceBack(&reference);
+		}
+
+		void Emplace(size index, NoRef& reference) {
+			pointers.Emplace(index, &reference);
+		}
+
+		void EraseBack() {
+			pointers.EraseBack();
+		}
+
+		void Erase(size index) {
+			pointers.Erase(index);
+		}
+
+		void Reinit(size index, NoRef& reference) {
+			pointers.Reinit(index, &reference);
+		}
+
+		size GetIndex(const NoRef& value) const {
+			for (int i = 0; i < GetLength(); i++)
+				if (*pointers.begin()[i] == value)
+					return i;
+
+			return nullindex;
+		}
+
+		bool Contains(const NoRef& Target) const {
+			pointers.Contains((NoRef* const) & Target);
+		}
+
+	private:
+		Array<NoRef*> pointers = {};
+	};
+
 #ifdef ACTL_STD_INCLUDED_IOSTREAM
 	template <typename Char, typename Type>
 	std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Array<Type>& Array) {
@@ -479,9 +653,9 @@ namespace ACTL {
 
 		if (Array) {
 			for (size i = 0; i < Array.GetLength() - 1; i++)
-				ostream << Array[i] << ", ";
+				ostream << (const Type&)Array[i] << ", ";
 
-			ostream << Array[Array.GetLength() - 1] << " ";
+			ostream << (const Type&)Array[Array.GetLength() - 1] << " ";
 		}
 
 		ostream << "}";
