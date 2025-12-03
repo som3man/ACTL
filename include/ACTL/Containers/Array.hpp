@@ -162,6 +162,14 @@ namespace ACTL {
 			operator=(ACTL::move(Another));
 		}
 
+		Array(const Array<Type&>& References) {
+			operator=(References);
+		}
+
+		Array(const Array<const Type&>& References) {
+			operator=(References);
+		}
+
 		// Copies each object from list.
 		Array(const std::initializer_list<Type>& list) noexcept {
 			operator=(list);
@@ -204,6 +212,24 @@ namespace ACTL {
 			Another.last = nullptr;
 
 			Another.ending = nullptr;
+
+			return *this;
+		}
+
+		Array& operator =(const Array<Type&>& References) {
+			Clear();
+
+			for (const Type& Reference : References)
+				EmplaceBack(Reference);
+
+			return *this;
+		}
+
+		Array& operator =(const Array<const Type&>& References) {
+			Clear();
+
+			for (const Type& Reference : References)
+				EmplaceBack(Reference);
 
 			return *this;
 		}
@@ -479,6 +505,9 @@ namespace ACTL {
 					last = ptr + length;
 				}
 			}
+			else {
+				static_assert("Type must be move-constructible or copy-constructible!");
+			}
 		}
 	};
 
@@ -508,10 +537,14 @@ namespace ACTL {
 			Reference(NoRef* pointer) : pointer(pointer) {};
 		};
 
-		Array() {};
+		Array() noexcept {};
 
 		Array(size newCapacity) {
 			operator=(newCapacity);
+		}
+
+		Array(Array<NoRef>& Instances) {
+			operator=(Instances);
 		}
 
 		Array(const Array& Other) {
@@ -526,6 +559,15 @@ namespace ACTL {
 
 		Array& operator =(size newCapacity) {
 			pointers = newCapacity;
+
+			return *this;
+		}
+
+		Array& operator =(Array<NoRef>& Instances) {
+			Clear();
+
+			for (auto& Instance : Instances)
+				pointers.EmplaceBack(&Instance);
 
 			return *this;
 		}
@@ -590,6 +632,15 @@ namespace ACTL {
 			return pointers;
 		}
 
+		operator Array<const NoRef&>() const {
+			Array<const NoRef&> NewArray = GetCapacity();
+
+			for (const NoRef& Ref : *this)
+				NewArray.EmplaceBack(Ref);
+
+			return NewArray;
+		}
+
 		size GetLength() const {
 			return pointers.GetLength();
 		}
@@ -649,7 +700,7 @@ namespace ACTL {
 #ifdef ACTL_STD_INCLUDED_IOSTREAM
 	template <typename Char, typename Type>
 	std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Array<Type>& Array) {
-		ostream << "[" << Array.GetLength() << "]{ ";
+		ostream << "[" << Array.GetLength() << ", " << Array.GetCapacity() << "]{ ";
 
 		if (Array) {
 			for (size i = 0; i < Array.GetLength() - 1; i++)
@@ -658,9 +709,7 @@ namespace ACTL {
 			ostream << (const Type&)Array[Array.GetLength() - 1] << " ";
 		}
 
-		ostream << "}";
-
-		return ostream;
+		return ostream << "}";
 	}
 #endif
 }

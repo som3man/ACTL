@@ -5,3 +5,5 @@
 #include "Many.hpp"
 #include "String.hpp"
 #include "Pair.hpp"
+#include "Union.hpp"
+#include "Tuple.hpp"

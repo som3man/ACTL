@@ -27,4 +27,25 @@ namespace ACTL {
 	using False = Bool<false>;
 
 	using True = Bool<true>;
+
+	template <typename First, typename Second>
+	struct IsSame : False {};
+
+	template <typename Type>
+	struct IsSame<Type, Type> : True {};
+
+	namespace Internal {
+		template <bool condition, typename TrueType, typename FalseType>
+		struct Conditional {
+			using Result = TrueType;
+		};
+
+		template <typename TrueType, typename FalseType>
+		struct Conditional<false, TrueType, FalseType> {
+			using Result = FalseType;
+		};
+	}
+
+	template <bool condition, typename TrueType, typename FalseType>
+	using Conditional = typename Internal::Conditional<condition, TrueType, FalseType>::Result;
 }

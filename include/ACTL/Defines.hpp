@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <math.h>
 
-#if defined(_DEBUG) || !defined(NDEBUG)
+#if defined(_DEBUG) || !defined(NDEBUG) || defined(DEBUG)
 	#define ACTL_DEBUG
 #endif
 
@@ -20,19 +20,51 @@ namespace ACTL {
 	#define assert(X) ((void)0)
 #endif
 
-#if defined(_VECTOR_)
+#if defined(_VECTOR_) || defined(_LIBCPP_VECTOR) || defined(_GLIBCXX_VECTOR)
 	#define ACTL_STD_INCLUDED_VECTOR 
 #endif
 
-#if defined(_XSTRING_)
+#if defined(_LIST_) || defined(_LIBCPP_LIST) || defined(_GLIBCXX_LIST)
+	#define ACTL_STD_INCLUDED_LIST
+#endif
+
+#if defined(_XSTRING_) || defined(_LIBCPP_STRING) || defined(_GLIBCXX_STRING)
 	#define ACTL_STD_INCLUDED_STRING 
 #endif
 
-#if defined(_IOSTREAM_)
+#if defined(_IOSTREAM_) || defined(_LIBCPP_IOSTREAM) || defined(_GLIBCXX_IOSTREAM)
 	#define ACTL_STD_INCLUDED_IOSTREAM 
 #endif
 
 namespace ACTL {
+	constexpr bool includedStdVector =
+#ifdef ACTL_STD_INCLUDED_VECTOR
+		true;
+#else
+		false;
+#endif
+
+	constexpr bool includedStdList =
+#ifdef ACTL_STD_INCLUDED_LIST
+		true;
+	#else
+		false;
+	#endif
+
+	constexpr bool includedStdString =
+#ifdef ACTL_STD_INCLUDED_STRING
+		true;
+#else
+		false;
+#endif
+
+	constexpr bool includedStdIostream =
+#ifdef ACTL_STD_INCLUDED_IOSTREAM
+		true;
+#else
+		false;
+#endif
+
 	using u64 = unsigned long long;
 
 	using i64 = long long;
@@ -54,6 +86,8 @@ namespace ACTL {
 	using f64 = double;
 
 	using size = u64;
+
+	using byte = u8;
 
 	template <typename Char>
 	using cstr = Char*;
@@ -90,9 +124,9 @@ namespace ACTL {
 
 	constexpr f64 f64min = 2.2250738585072014e-308;
 
-	static inline const f64 infinity = 1.0 / 0.0;
+	static inline const f32 infinity = 1.0 / 0.0;
 
-	static inline const f64 nan = 0.0 / 0.0;
+	static inline const f32 nan = 0.0 / 0.0;
 
 	// Is returned by resizable containers as an error.
 	constexpr size nullindex = u64max;

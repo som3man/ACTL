@@ -13,37 +13,37 @@ namespace ACTL {
 		// Length of array.
 		size count = 0;
 
-		constexpr Many() noexcept = default;
+		Many() noexcept = default;
 
-		constexpr Many(Type* data, size count) noexcept : data(data), count(count) {};
+		Many(Type* data, size count) noexcept : data(data), count(count) {};
 
-		constexpr ~Many() noexcept {
+		~Many() noexcept {
 			data = nullptr;
 
 			count = 0;
 		}
 
-		constexpr Type& operator[](size index) noexcept {
+		Type& operator[](size index) noexcept {
 			return data[index];
 		};
 
-		constexpr const Type& operator[](size index) const noexcept {
+		const Type& operator[](size index) const noexcept {
 			return data[index];
 		};
 
-		constexpr Type* begin() noexcept {
+		Type* begin() noexcept {
 			return data;
 		};
 
-		constexpr const Type* begin() const noexcept {
+		const Type* begin() const noexcept {
 			return data;
 		};
 
-		constexpr Type* end() noexcept {
+		Type* end() noexcept {
 			return data + count;
 		};
 
-		constexpr const Type* end() const noexcept {
+		const Type* end() const noexcept {
 			return data + count;
 		};
 	};

@@ -45,14 +45,14 @@ namespace ACTL {
 
 	template <typename TemplateType>
 	struct RvalueReference {
-		using Type = Internal::RvalueReference<TemplateType, isReference<TemplateType>>::Type;
+		using Type = typename Internal::RvalueReference<TemplateType, isReference<TemplateType>>::Type;
 	};
 
 	template <typename Type>
 	using RvalueReferenceType = typename RvalueReference<Type>::Type;
 
 	template <typename Type>
-	typename RvalueReferenceType<Type> declval() noexcept;
+	RvalueReferenceType<Type> declval() noexcept;
 
 	namespace Internal {
 		template <typename TemplateType, typename... Args>
