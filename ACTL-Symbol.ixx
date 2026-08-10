@@ -410,6 +410,10 @@ export namespace ACTL {
                 return Symbol(data + byteIndex, GetSymLength(data[byteIndex]));
             }
 
+            consteval operator typename String<char>::View() noexcept {
+                return String<char>::View(begin());
+            }
+
             template <typename Char>
             constexpr String<Char> ConvertTo() const noexcept {
                 if constexpr (std::is_same_v<char, Char>)
