@@ -22,3 +22,5 @@ add_executable(Option "Option.cpp")
 add_executable(String "String.cpp")
 
 add_executable(Symbol "Symbol.cpp")
+
+add_executable(Delegate "Delegate.cpp")

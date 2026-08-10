@@ -56,7 +56,7 @@ export namespace ACTL {
             constexpr virtual ~Callable() noexcept {};
 
             constexpr virtual Return Call(Args&&... args) noexcept {
-                instance(ACTL::forward<Args>(args)...);
+                return instance(ACTL::forward<Args>(args)...);
             }
         };
 
