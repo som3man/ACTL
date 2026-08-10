@@ -410,6 +410,11 @@ export namespace ACTL {
     }
 
     template <typename Char>
+    constexpr String<Char>& operator <<(String<Char>& string, const String<Char>& other) noexcept {
+        return string += other;
+    }
+
+    template <typename Char>
     constexpr String<Char>& operator <<(String<Char>& string, Char symbol) noexcept {
         string.Set(string.getLength(), symbol);
 
