@@ -10,6 +10,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(ACTL)
 
+target_compile_definitions(ACTL INTERFACE
+    ACTL_INCLUDED
+)
+
 target_compile_features(ACTL PUBLIC cxx_std_20)
 
 target_sources(ACTL
