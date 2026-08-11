@@ -207,16 +207,16 @@ export namespace ACTL {
 
         constexpr Symbol& operator =(Symbol&&) noexcept = default;
 
-        constexpr operator bool() const noexcept {
+        [[nodiscard]] constexpr operator bool() const noexcept {
             return value;
         }
 
-        constexpr operator char32_t() const noexcept {
+        [[nodiscard]] constexpr operator char32_t() const noexcept {
             return value;
         }
 
         template <typename Char>
-        constexpr String<Char> ToString() const noexcept {
+        [[nodiscard]] constexpr String<Char> ToString() const noexcept {
             String<Char> result = {};
 
             if (!*this)
@@ -263,27 +263,27 @@ export namespace ACTL {
             return result;
         }
 
-        constexpr bool operator ==(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator ==(const Symbol& other) const noexcept {
             return value == other.value;
         }
 
-        constexpr bool operator !=(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator !=(const Symbol& other) const noexcept {
             return value != other.value;
         }
 
-        constexpr bool operator <=(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <=(const Symbol& other) const noexcept {
             return value <= other.value;
         }
 
-        constexpr bool operator >=(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >=(const Symbol& other) const noexcept {
             return value >= other.value;
         }
 
-        constexpr bool operator <(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <(const Symbol& other) const noexcept {
             return value < other.value;
         }
 
-        constexpr bool operator >(const Symbol& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >(const Symbol& other) const noexcept {
             return value > other.value;
         }
     };
@@ -378,35 +378,35 @@ export namespace ACTL {
 
             constexpr View& operator =(View&&) noexcept = default;
 
-            constexpr u32 getByteLength() const noexcept {
+            [[nodiscard]] constexpr u32 getByteLength() const noexcept {
                 return byteLength;
             }
 
-            constexpr u32 getLength() const noexcept {
+            [[nodiscard]] constexpr u32 getLength() const noexcept {
                 return symLength;
             }
 
-            constexpr bool notEmpty() const noexcept {
+            [[nodiscard]] constexpr bool notEmpty() const noexcept {
                 return byteLength;
             }
 
-            constexpr bool isEmpty() const noexcept {
+            [[nodiscard]] constexpr bool isEmpty() const noexcept {
                 return !notEmpty();
             }
 
-            constexpr operator bool() const noexcept {
+            [[nodiscard]] constexpr operator bool() const noexcept {
                 return notEmpty();
             }
 
-            constexpr const char* begin() const noexcept {
+            [[nodiscard]] constexpr const char* begin() const noexcept {
                 return data;
             }
 
-            constexpr const char* end() const noexcept {
+            [[nodiscard]] constexpr const char* end() const noexcept {
                 return begin() + byteLength;
             }
 
-            constexpr Symbol operator [](u32 index) const noexcept {
+            [[nodiscard]] constexpr Symbol operator [](u32 index) const noexcept {
                 if (index >= symLength)
                     return Symbol();
 
@@ -415,16 +415,16 @@ export namespace ACTL {
                 return Symbol(data + byteIndex, GetSymLength(data[byteIndex]));
             }
 
-            consteval operator typename String<char>::View() const noexcept {
+            [[nodiscard]] consteval operator typename String<char>::View() const noexcept {
                 return String<char>::View(begin());
             }
 
-            constexpr operator String<char>() const noexcept {
+            [[nodiscard]] constexpr operator String<char>() const noexcept {
                 return ConvertTo<char>();
             }
 
             template <typename Char>
-            constexpr String<Char> ConvertTo() const noexcept {
+            [[nodiscard]] constexpr String<Char> ConvertTo() const noexcept {
                 if constexpr (std::is_same_v<char, Char>)
                     return String<char>::FromCstring(data, byteLength);
 
@@ -597,39 +597,39 @@ export namespace ACTL {
             symLength--;
         }
 
-        constexpr u32 getByteLength() const noexcept {
+        [[nodiscard]] constexpr u32 getByteLength() const noexcept {
             return data.getLength();
         }
 
-        constexpr u32 getLength() const noexcept {
+        [[nodiscard]] constexpr u32 getLength() const noexcept {
             return symLength;
         }
 
-        constexpr bool isEmpty() const noexcept {
+        [[nodiscard]] constexpr bool isEmpty() const noexcept {
             return data.isEmpty();
         }
 
-        constexpr bool notEmpty() const noexcept {
+        [[nodiscard]] constexpr bool notEmpty() const noexcept {
             return data.notEmpty();
         }
 
-        constexpr operator bool() const noexcept {
+        [[nodiscard]] constexpr operator bool() const noexcept {
             return data;
         }
 
-        constexpr const char* begin() const noexcept {
+        [[nodiscard]] constexpr const char* begin() const noexcept {
             return data.begin();
         }
 
-        constexpr const char* end() const noexcept {
+        [[nodiscard]] constexpr const char* end() const noexcept {
             return data.end();
         }
 
-        constexpr const String<char>& getData() const noexcept {
+        [[nodiscard]] constexpr const String<char>& getData() const noexcept {
             return data;
         }
 
-        constexpr Symbol operator [](u32 index) const noexcept {
+        [[nodiscard]] constexpr Symbol operator [](u32 index) const noexcept {
             if (index >= symLength)
                 return Symbol();
 
@@ -639,7 +639,7 @@ export namespace ACTL {
         }
 
         template <typename Char>
-        constexpr String<Char> ConvertTo() const noexcept {
+        [[nodiscard]] constexpr String<Char> ConvertTo() const noexcept {
             if constexpr (std::is_same_v<char, Char>)
                 return data;
 
@@ -661,27 +661,27 @@ export namespace ACTL {
             return result;
         }
 
-        constexpr bool operator ==(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator ==(const String& other) const noexcept {
             return data == other.data;
         }
 
-        constexpr bool operator !=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator !=(const String& other) const noexcept {
             return data != other.data;
         }
 
-        constexpr bool operator <=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <=(const String& other) const noexcept {
             return data <= other.data;
         }
 
-        constexpr bool operator >=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >=(const String& other) const noexcept {
             return data >= other.data;
         }
 
-        constexpr bool operator <(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <(const String& other) const noexcept {
             return data < other.data;
         }
 
-        constexpr bool operator >(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >(const String& other) const noexcept {
             return data > other.data;
         }
 

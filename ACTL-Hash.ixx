@@ -230,12 +230,12 @@ export namespace ACTL {
     };
 
     template <Hashable Type>
-    constexpr u64 GetHash(const Type& object) noexcept {
+    [[nodiscard]] constexpr u64 GetHash(const Type& object) noexcept {
         return object.GetHash();
     }
 
     template <typename Type>
-    constexpr u64 GetHash(const Type &object) noexcept {
+    [[nodiscard]] constexpr u64 GetHash(const Type &object) noexcept {
         return RapidHashNano(&object, sizeof(Type));
     }
 }

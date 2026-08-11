@@ -105,15 +105,15 @@ export namespace ACTL {
             }
         }
 
-        constexpr bool operator ==(std::nullptr_t) const noexcept {
+        [[nodiscard]] constexpr bool operator ==(std::nullptr_t) const noexcept {
             return interface == nullptr;
         }
 
-        constexpr bool operator !=(std::nullptr_t) const noexcept {
+        [[nodiscard]] constexpr bool operator !=(std::nullptr_t) const noexcept {
             return interface != nullptr;
         }
 
-        constexpr operator bool() const noexcept {
+        [[nodiscard]] constexpr operator bool() const noexcept {
             return interface;
         }
 

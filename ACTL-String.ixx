@@ -81,31 +81,31 @@ export namespace ACTL {
 
             constexpr View& operator =(View&& other) noexcept = default;
 
-            constexpr u32 getLength() const noexcept {
+            [[nodiscard]] constexpr u32 getLength() const noexcept {
                 return length;
             }
 
-            constexpr const Char* begin() const noexcept {
+            [[nodiscard]] constexpr const Char* begin() const noexcept {
                 return data;
             }
 
-            constexpr const Char* end() const noexcept {
+            [[nodiscard]] constexpr const Char* end() const noexcept {
                 return data + length;
             }
 
-            constexpr Char operator [](u32 index) const noexcept {
+            [[nodiscard]] constexpr Char operator [](u32 index) const noexcept {
                 return index < length ? data[index] : null;
             }
 
-            constexpr bool notEmpty() const noexcept {
+            [[nodiscard]] constexpr bool notEmpty() const noexcept {
                 return length;
             }
 
-            constexpr bool isEmpty() const noexcept {
+            [[nodiscard]] constexpr bool isEmpty() const noexcept {
                 return !notEmpty();
             }
 
-            constexpr operator bool() const noexcept {
+            [[nodiscard]] constexpr operator bool() const noexcept {
                 return notEmpty();
             }
 
@@ -127,7 +127,7 @@ export namespace ACTL {
             }
         };
 
-        static constexpr String FromCstring(const Char* cstring, u32 maxLength = 1024) noexcept {
+        [[nodiscard]] static constexpr String FromCstring(const Char* cstring, u32 maxLength = 1024) noexcept {
             String result = {};
 
             if (!cstring)
@@ -272,30 +272,30 @@ export namespace ACTL {
             data.EraseStrict(index);
         }
 
-        constexpr Char operator [](u32 index) const noexcept {
+        [[nodiscard]] constexpr Char operator [](u32 index) const noexcept {
             if (index < getLength())
                 return data.begin()[index];
 
             return null;
         }
 
-        constexpr u32 getLength() const noexcept {
+        [[nodiscard]] constexpr u32 getLength() const noexcept {
             return data.getLength() - 1;
         }
 
-        constexpr bool isEmpty() const noexcept {
+        [[nodiscard]] constexpr bool isEmpty() const noexcept {
             return !notEmpty();
         }
 
-        constexpr bool notEmpty() const noexcept {
+        [[nodiscard]] constexpr bool notEmpty() const noexcept {
             return getLength();
         }
 
-        constexpr operator bool() const noexcept {
+        [[nodiscard]] constexpr operator bool() const noexcept {
             return notEmpty();
         }
 
-        constexpr bool operator ==(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator ==(const String& other) const noexcept {
             if (getLength() != other.getLength())
                 return false;
 
@@ -306,11 +306,11 @@ export namespace ACTL {
             return true;
         }
 
-        constexpr bool operator !=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator !=(const String& other) const noexcept {
             return !operator==(other);
         }
 
-        constexpr bool operator >=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >=(const String& other) const noexcept {
             if (getLength() < other.getLength())
                 return false;
             else if (getLength() > other.getLength())
@@ -323,7 +323,7 @@ export namespace ACTL {
             return true;
         }
 
-        constexpr bool operator <=(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <=(const String& other) const noexcept {
             if (getLength() > other.getLength())
                 return false;
             else if (getLength() < other.getLength())
@@ -336,31 +336,31 @@ export namespace ACTL {
             return true;
         }
 
-        constexpr bool operator >(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator >(const String& other) const noexcept {
             return !operator<=(other);
         }
 
-        constexpr bool operator <(const String& other) const noexcept {
+        [[nodiscard]] constexpr bool operator <(const String& other) const noexcept {
             return !operator>=(other);
         }
 
-        constexpr const auto& getArray() const noexcept {
+        [[nodiscard]] constexpr const auto& getArray() const noexcept {
             return data;
         }
 
-        constexpr Char* begin() noexcept {
+        [[nodiscard]] constexpr Char* begin() noexcept {
             return data.begin();
         }
 
-        constexpr Char* end() noexcept {
+        [[nodiscard]] constexpr Char* end() noexcept {
             return data.begin() + getLength();
         }
 
-        constexpr const Char* begin() const noexcept {
+        [[nodiscard]] constexpr const Char* begin() const noexcept {
             return data.begin();
         }
 
-        constexpr const Char* end() const noexcept {
+        [[nodiscard]] constexpr const Char* end() const noexcept {
             return data.begin() + getLength();
         }
 

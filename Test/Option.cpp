@@ -80,7 +80,7 @@ bool GettersTest() {
     ACTL::Option<Class<int>, Class<float>, Class<bool>> option = Class<int>(10);
 
     try {
-        option.GetOrExcept<Class<bool>>();
+        auto v = option.GetOrExcept<Class<bool>>();
 
         return false;
     }
@@ -111,7 +111,7 @@ bool GettersTest() {
     auto c = option.GetOrNew<Class<bool>>(true);
 
     try {
-        option.GetOrExcept<Class<float>>();
+        auto v = option.GetOrExcept<Class<float>>();
     }
     catch (const char*) {
         return false;
@@ -140,7 +140,7 @@ bool HeapTest() {
         return false;
 
     try {
-        option.GetOrExcept<ACTL::Heap<Class<int>>>();
+        auto v = option.GetOrExcept<ACTL::Heap<Class<int>>>();
 
         return false;
     }
@@ -194,7 +194,7 @@ bool VoidTest() {
         return false;
 
     try {
-        option.GetOrExcept<ACTL::Heap<Class<int>>>();
+        auto v = option.GetOrExcept<ACTL::Heap<Class<int>>>();
 
         return false;
     }

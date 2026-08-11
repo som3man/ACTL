@@ -33,7 +33,7 @@ import :Defines;
 
 export namespace ACTL {
     template <typename Type>
-    constexpr Type* Allocate(size count = 1) noexcept {
+    [[nodiscard]] constexpr Type* Allocate(size count = 1) noexcept {
         std::allocator<Type> allocator = {};
 
         return allocator.allocate(count);

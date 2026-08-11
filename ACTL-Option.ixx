@@ -125,53 +125,53 @@ namespace ACTL {
             }
         }
 
-        constexpr bool isAllocated() const noexcept {
+        [[nodiscard]] constexpr bool isAllocated() const noexcept {
             return pointer;
         }
 
-        constexpr Type& GetOrExcept() {
+        [[nodiscard]] constexpr Type& GetOrExcept() {
             if (pointer)
                 return *pointer;
 
             throw "Heap is not allocated!";
         }
 
-        constexpr const Type& GetOrExcept() const {
+        [[nodiscard]] constexpr const Type& GetOrExcept() const {
             if (pointer)
                 return *pointer;
 
             throw "Heap is not allocated!";
         }
 
-        constexpr Type* operator ->() {
+        [[nodiscard]] constexpr Type* operator ->() {
             return &GetOrExcept();
         }
 
-        constexpr const Type* operator ->() const {
+        [[nodiscard]] constexpr const Type* operator ->() const {
             return &GetOrExcept();
         }
 
-        constexpr Type& operator *() {
+        [[nodiscard]] constexpr Type& operator *() {
             return GetOrExcept();
         }
 
-        constexpr const Type& operator *() const {
+        [[nodiscard]] constexpr const Type& operator *() const {
             return GetOrExcept();
         }
 
-        constexpr operator Type& () {
+        [[nodiscard]] constexpr operator Type& () {
             return GetOrExcept();
         }
 
-        constexpr operator const Type& () const {
+        [[nodiscard]] constexpr operator const Type& () const {
             return GetOrExcept();
         }
 
-        constexpr bool operator ==(std::nullptr_t) const noexcept {
+        [[nodiscard]] constexpr bool operator ==(std::nullptr_t) const noexcept {
             return pointer == nullptr;
         }
 
-        constexpr bool operator !=(std::nullptr_t) const noexcept {
+        [[nodiscard]] constexpr bool operator !=(std::nullptr_t) const noexcept {
             return pointer != nullptr;
         }
 
@@ -442,21 +442,21 @@ namespace ACTL {
 
         // Checks if Type is initialized in Option.
         template <typename Type>
-        constexpr bool is() const noexcept {
+        [[nodiscard]] constexpr bool is() const noexcept {
             constexpr byte index = GetIndex<Type, Types...>(0);
 
             return typeIndex == index;
         }
 
-        constexpr bool isVoid() const noexcept {
+        [[nodiscard]] constexpr bool isVoid() const noexcept {
             return is<Void>();
         }
 
-        constexpr bool notVoid() const noexcept {
+        [[nodiscard]] constexpr bool notVoid() const noexcept {
             return !is<Void>();
         }
 
-        constexpr operator bool() const noexcept {
+        [[nodiscard]] constexpr operator bool() const noexcept {
             return notVoid();
         }
 
@@ -486,7 +486,7 @@ namespace ACTL {
         }
 
         template <typename Type>
-        constexpr auto& GetOrExcept() {
+        [[nodiscard]] constexpr auto& GetOrExcept() {
             static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
 
             constexpr byte index = GetIndex<Type, Types...>(0);
@@ -503,7 +503,7 @@ namespace ACTL {
         }
 
         template <typename Type>
-        constexpr const auto& GetOrExcept() const {
+        [[nodiscard]] constexpr const auto& GetOrExcept() const {
             static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
 
             constexpr byte index = GetIndex<Type, Types...>(0);
@@ -520,7 +520,7 @@ namespace ACTL {
         }
 
         template <typename Type, typename... Args>
-        constexpr const auto GetOrNew(Args&&... args) const noexcept {
+        [[nodiscard]] constexpr const auto GetOrNew(Args&&... args) const noexcept {
             static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
 
             constexpr byte index = GetIndex<Type, Types...>(0);
@@ -537,7 +537,7 @@ namespace ACTL {
         }
 
         template <typename Type, typename... Args>
-        constexpr auto& GetOrSet(Args&&... args) noexcept {
+        [[nodiscard]] constexpr auto& GetOrSet(Args&&... args) noexcept {
             static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
 
             constexpr byte index = GetIndex<Type, Types...>(0);
@@ -637,49 +637,49 @@ namespace ACTL {
             data.template Set<Void>();
         }
 
-        constexpr bool isConstructed() const noexcept {
+        [[nodiscard]] constexpr bool isConstructed() const noexcept {
             return data.notVoid();
         }
 
-        constexpr Type& GetOrExcept() {
+        [[nodiscard]] constexpr Type& GetOrExcept() {
             return data.template GetOrExcept<Type>();
         }
 
-        constexpr const Type& GetOrExcept() const {
+        [[nodiscard]] constexpr const Type& GetOrExcept() const {
             return data.template GetOrExcept<Type>();
         }
 
         template <typename... Args>
-        constexpr Type GetOrNew(Args&&... args) const noexcept {
+        [[nodiscard]] constexpr Type GetOrNew(Args&&... args) const noexcept {
             return data.template GetOrNew<Type>(ACTL::forward<Args>(args)...);
         }
 
         template <typename... Args>
-        constexpr Type& GetOrSet(Args&&... args) noexcept {
+        [[nodiscard]] constexpr Type& GetOrSet(Args&&... args) noexcept {
             return data.template GetOrSet<Type>(ACTL::forward<Args>(args)...);
         }
 
-        constexpr Type* operator ->() {
+        [[nodiscard]] constexpr Type* operator ->() {
             return &GetOrExcept();
         }
 
-        constexpr const Type* operator ->() const {
+        [[nodiscard]] constexpr const Type* operator ->() const {
             return &GetOrExcept();
         }
 
-        constexpr Type& operator *() {
+        [[nodiscard]] constexpr Type& operator *() {
             return GetOrExcept();
         }
 
-        constexpr const Type& operator *() const {
+        [[nodiscard]] constexpr const Type& operator *() const {
             return GetOrExcept();
         }
 
-        constexpr operator Type& () {
+        [[nodiscard]] constexpr operator Type& () {
             return GetOrExcept();
         }
 
-        constexpr operator const Type& () const {
+        [[nodiscard]] constexpr operator const Type& () const {
             return GetOrExcept();
         }
 

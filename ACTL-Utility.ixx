@@ -30,12 +30,12 @@ export module ACTL:Utility;
 
 export namespace ACTL {
     template <typename Type>
-    constexpr Type&& forward(Type& data) noexcept {
+    [[nodiscard]] constexpr Type&& forward(Type& data) noexcept {
         return std::forward<Type>(data);
     }
 
     template <typename Type>
-    constexpr auto&& move(Type&& data) noexcept {
+    [[nodiscard]] constexpr auto&& move(Type&& data) noexcept {
         return std::move(data);
     }
 

@@ -42,7 +42,7 @@ export namespace ACTL {
 
     // Binary search implementation.
     template <typename Type, typename Value>
-    constexpr SearchResult Find(const Type* array, size length, const Value& value) noexcept {
+    [[nodiscard]] constexpr SearchResult Find(const Type* array, size length, const Value& value) noexcept {
         if (!length)
             return {
                 u32max,
