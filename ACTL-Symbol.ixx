@@ -293,6 +293,11 @@ export namespace ACTL {
         return ostream << symbol.ToString<Char>();
     }
 
+    template <typename Char>
+    constexpr String<Char>& operator <<(String<Char>& string, const Symbol& symbol) noexcept {
+        return string += symbol.ToString<Char>();
+    }
+
     template <>
     class String<Symbol> {
         String<char> data = {};
@@ -410,8 +415,12 @@ export namespace ACTL {
                 return Symbol(data + byteIndex, GetSymLength(data[byteIndex]));
             }
 
-            consteval operator typename String<char>::View() noexcept {
+            consteval operator typename String<char>::View() const noexcept {
                 return String<char>::View(begin());
+            }
+
+            constexpr operator String<char>() const noexcept {
+                return ConvertTo<char>();
             }
 
             template <typename Char>
@@ -688,6 +697,24 @@ export namespace ACTL {
             }
         }
     };
+
+    template <typename Char>
+    constexpr String<Char>& operator <<(String<Char>& string, const String<Symbol>::View& other) noexcept {
+        return string << other.ConvertTo<Char>();
+    }
+
+    template <typename Char>
+    constexpr String<Char>& operator <<(String<Char>& string, const String<Symbol>& other) noexcept {
+        return string << other.ConvertTo<Char>();
+    }
+
+    constexpr String<Symbol>& operator <<(String<Symbol>& string, const String<Symbol>::View& other) noexcept {
+        return string += String<Symbol>(other);
+    }
+
+    constexpr String<Symbol>& operator <<(String<Symbol>& string, const String<Symbol>& other) noexcept {
+        return string += other;
+    }
 
     constexpr String<Symbol>& operator <<(String<Symbol>& string, Symbol symbol) noexcept {
         string.EmplaceBack(symbol);
