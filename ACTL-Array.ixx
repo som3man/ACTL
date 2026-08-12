@@ -417,6 +417,25 @@ export namespace ACTL {
             EraseBack();
         }
 
+        // Emplaces element and keeps array sorted.
+        template <typename... Args>
+        constexpr Type& EmplaceSorted(Args&&... args) noexcept {
+            Type temp(ACTL::forward<Args>(args)...);
+
+            auto result = Find(temp);
+
+            return EmplaceStrict(result.index, ACTL::move(temp));
+        }
+
+        // Erases element with given value and keeps array sorted.
+        // Does nothing if element is not found.
+        constexpr void EraseSorted(const Type& value) noexcept {
+            auto result = Find(value);
+
+            if (result.found)
+                EraseStrict(result.index);
+        }
+
         // Destructs all elements.
         // Or just nulls length if destructor is trivial.
         constexpr void Clear() noexcept {
