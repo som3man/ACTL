@@ -703,4 +703,136 @@ namespace ACTL {
     constexpr String<Char>& operator <<(String<Char>& string, const Option<Type>& option) noexcept {
         return string << option.data;
     }
+
+    export template <typename Success, typename Fail = Void>
+    class Result {
+        Option<Success, Fail> option;
+
+        constexpr Result() noexcept {};
+
+        constexpr Result(Fail&& fail) noexcept : option(ACTL::forward(fail)) {};
+
+    public:
+        [[nodiscard]] static constexpr Result Failed() noexcept {
+            static_assert(std::is_same_v<Void, Fail>);
+
+            return {};
+        }
+        
+        [[nodiscard]] static constexpr Result Failed(Fail&& fail) noexcept {
+            static_assert(!std::is_same_v<Void, Fail>);
+
+            return Result(ACTL::forward(fail));
+        }
+
+        constexpr Result(Success&& success) noexcept : option(ACTL::forward(success)) {};
+
+        constexpr Result(const Result& other) noexcept : option(other.option) {};
+
+        constexpr Result(Result&& other) noexcept : option(ACTL::move(other.option)) {};
+
+        constexpr ~Result() noexcept {};
+
+        constexpr Result& operator =(const Result& other) noexcept {
+            option = other.option;
+
+            return *this;
+        }
+
+        constexpr Result& operator =(Result&& other) noexcept {
+            option = ACTL::move(other.option);
+
+            return *this;
+        }
+
+        [[nodiscard]] constexpr bool isSuccess() const noexcept {
+            return option.template is<Success>();
+        }
+
+        [[nodiscard]] constexpr operator bool() const noexcept {
+            return isSuccess();
+        }
+
+        [[nodiscard]] constexpr operator Success& () {
+            if (isSuccess())
+                return option.template GetOrExcept<Success>();
+
+            throw "The Result is fail!";
+        }
+
+        [[nodiscard]] constexpr operator const Success& () const {
+            if (isSuccess())
+                return option.template GetOrExcept<Success>();
+
+            throw "The Result is fail!";
+        }
+
+        [[nodiscard]] constexpr Success& operator *() {
+            return operator Success&();
+        }
+
+        [[nodiscard]] constexpr const Success& operator *() const {
+            return operator const Success& ();
+        }
+
+        [[nodiscard]] constexpr Success* operator ->() {
+            return &(operator Success&());
+        }
+
+        [[nodiscard]] constexpr const Success* operator ->() const {
+            return &(operator const Success& ());
+        }
+
+        constexpr Fail& GetFail() {
+            if (isSuccess())
+                throw "The Result is success!";
+
+            return option.template GetOrExcept<Fail>();
+        }
+
+        constexpr const Fail& GetFail() const {
+            if (isSuccess())
+                throw "The Result is success!";
+
+            return option.template GetOrExcept<Fail>();
+        }
+
+        template <typename Return = void>
+        constexpr Return Visit(auto&& forSuccess, auto&& forFail) noexcept {
+            return option.Visit(ACTL::forward(forSuccess), ACTL::forward(forFail));
+        }
+
+        template <typename Return = void>
+        constexpr Return Visit(auto&& forSuccess, auto&& forFail) const noexcept {
+            return option.Visit(ACTL::forward(forSuccess), ACTL::forward(forFail));
+        }
+    };
+
+    export template <typename Char, typename Success, typename Fail>
+    std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Result<Success, Fail>& result) noexcept {
+        if (result.isSuccess()) {
+            const Success& success = result;
+
+            return ostream << result;
+        }
+        else {
+            const Fail& fail = result.GetFail();
+
+            return ostream << fail;
+        }
+    }
+
+    export template <typename Char, typename Success, typename Fail>
+    constexpr String<Char>& operator <<(String<Char>& string, const Result<Success, Fail>& result) noexcept {
+        if (result.isSuccess()) {
+            const Success& success = result;
+
+            return string << result;
+        }
+        else {
+            const Fail& fail = result.GetFail();
+
+            return string << fail;
+        }
+    }
 }
