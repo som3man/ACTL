@@ -125,6 +125,10 @@ export namespace ACTL {
                         func(*i);
                 }
             }
+
+            [[nodiscard]] constexpr u64 GetHash() const noexcept {
+                return RapidHashNano(data, length);
+            }
         };
 
         [[nodiscard]] static constexpr String FromCstring(const Char* cstring, u32 maxLength = 1024) noexcept {
@@ -396,6 +400,10 @@ export namespace ACTL {
                 for (auto i = begin() + start - 1; i >= begin() + finish; i--)
                     func(*i);
             }
+        }
+
+        [[nodiscard]] constexpr u64 GetHash() const noexcept {
+            return RapidHashNano(begin(), getLength());
         }
     };
 

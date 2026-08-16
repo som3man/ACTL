@@ -445,6 +445,10 @@ export namespace ACTL {
 
                 return result;
             }
+
+            [[nodiscard]] constexpr u64 GetHash() const noexcept {
+                return RapidHashNano(data, byteLength);
+            }
         };
 
         constexpr String() noexcept {};
@@ -695,6 +699,10 @@ export namespace ACTL {
 
                 i += symLength;
             }
+        }
+
+        [[nodiscard]] constexpr u64 GetHash() const noexcept {
+            return data.GetHash();
         }
     };
 
