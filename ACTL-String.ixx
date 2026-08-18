@@ -165,9 +165,7 @@ export namespace ACTL {
             std::copy(view.begin(), view.end(), data.begin());
         }
 
-        constexpr String() noexcept {
-            data.EmplaceBack(null);
-        }
+        constexpr String() noexcept {};
 
         constexpr String(const String& other) noexcept {
             operator=(other);
@@ -229,7 +227,10 @@ export namespace ACTL {
         }
 
         constexpr void EmplaceBack(Char symbol) noexcept {
-            data.back() = symbol;
+            if (data)
+                data.back() = symbol;
+            else
+                data.EmplaceBack(symbol);
 
             data.EmplaceBack(null);
         }
@@ -284,6 +285,9 @@ export namespace ACTL {
         }
 
         [[nodiscard]] constexpr u32 getLength() const noexcept {
+            if (!data)
+                return 0;
+
             return data.getLength() - 1;
         }
 
@@ -352,18 +356,22 @@ export namespace ACTL {
             return data;
         }
 
+        // May return nullptr.
         [[nodiscard]] constexpr Char* begin() noexcept {
             return data.begin();
         }
 
+        // May return nullptr.
         [[nodiscard]] constexpr Char* end() noexcept {
             return data.begin() + getLength();
         }
 
+        // May return nullptr.
         [[nodiscard]] constexpr const Char* begin() const noexcept {
             return data.begin();
         }
 
+        // May return nullptr.
         [[nodiscard]] constexpr const Char* end() const noexcept {
             return data.begin() + getLength();
         }
@@ -403,6 +411,9 @@ export namespace ACTL {
         }
 
         [[nodiscard]] constexpr u64 GetHash() const noexcept {
+            if (isEmpty())
+                return 0;
+
             return RapidHashNano(begin(), getLength());
         }
     };
