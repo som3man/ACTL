@@ -69,6 +69,18 @@ bool Compare(const ACTL::Array<Type>& array, const Type (&other)[capacity]) noex
     return true;
 }
 
+template <typename Type, ACTL::u32 capacity, ACTL::u32 capacity2>
+bool CompareStatic(const ACTL::StaticArray<Type, capacity>& array, const Type (&other)[capacity2]) noexcept {
+    if (array.getLength() != capacity2)
+        return false;
+
+    for (ACTL::u32 i = 0; i < capacity2; i++)
+        if (array.begin()[i] != other[i])
+            return false;
+
+    return true;
+}
+
 bool AllocationTest() noexcept {
     ACTL::Array<Class> array = {};
 
@@ -314,6 +326,56 @@ bool ConcatentaionTest() {
     return true;
 }
 
+bool StaticEmplaceAndEraseTest() {
+    ACTL::StaticArray<Class, 4> array = {};
+
+    array.EmplaceBack(0);
+
+    if (!CompareStatic<Class>(array, {
+        Class(0)
+    })) return false;
+
+    array.EmplaceBack(1);
+
+    array.EmplaceBack(10);
+
+    if (!CompareStatic<Class>(array, {
+        Class(0), Class(1), Class(10)
+    })) return false;
+
+    array.EmplaceStrict(1, -1);
+
+    if (!CompareStatic<Class>(array, {
+        Class(0), Class(-1), Class(1), Class(10)
+    })) return false;
+
+    try {
+        array.EmplaceBack(0);
+
+        return false;
+    }
+    catch (const char*) {};
+
+    auto& c = array.EmplaceBackOrGet(0);
+
+    if (c.value != 10)
+        return false;
+
+    array.EraseBack();
+
+    if (!CompareStatic<Class>(array, {
+        Class(0), Class(-1), Class(1)
+    })) return false;
+
+    array.EraseStrict(0);
+
+    if (!CompareStatic<Class>(array, {
+        Class(-1), Class(1)
+    })) return false;
+
+    return true;
+}
+
 int main() {
     if (AllocationTest())
         std::cout << "Allocation test: PASSED!" << std::endl;
@@ -354,6 +416,11 @@ int main() {
         std::cout << "Concatentaion test: PASSED!" << std::endl;
     else
         std::cout << "Concatentaion test: FAILED!" << std::endl;
+
+    if (StaticEmplaceAndEraseTest())
+        std::cout << "Static Emplace and Erase test: PASSED!" << std::endl;
+    else
+        std::cout << "Static Emplace and Erase test: FAILED!" << std::endl;
 
     return 0;
 }
