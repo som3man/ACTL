@@ -61,7 +61,22 @@ export namespace ACTL {
 
         u32 capacity = 0;
 
+        constexpr void ShiftRight(u32 index, u32 count) noexcept {
+            auto b = data + length - 1;
+
+            auto e = data + index;
+
+            for (auto i = b; i >= e; i--) {
+                auto& s = *i;
+
+                ACTL::Construct(i + count, ACTL::move(s));
+
+                s.~Type();
+            }
+        }
+
     public:
+        // Static capacity resizable array.
         template <u32 capacity>
         class Static;
 
@@ -191,32 +206,13 @@ export namespace ACTL {
         }
 
         constexpr Array& operator +=(const Array& other) noexcept {
-            if (!isAllocated())
-                Allocate(other.getLength());
-            else if (getCapacity() < getLength() + other.getLength())
-                Expand(other.getLength());
-
-            if constexpr (trivialCopy)
-                std::copy(other.begin(), other.end(), data + length);
-            else 
-                for (u32 i = 0; i < other.getLength(); i++)
-                    ACTL::Construct(data + length + i, other.begin()[i]);
-
-            length += other.getLength();
+            Insert(length, other);
 
             return *this;
         }
 
         constexpr Array& operator +=(Array&& other) noexcept {
-            if (!isAllocated())
-                Allocate(other.getLength());
-            else if (getCapacity() < getLength() + other.getLength())
-                Expand(other.getLength());
-
-            for (u32 i = 0; i < other.getLength(); i++)
-                ACTL::Construct(data + length + i, ACTL::move(other.begin()[i]));
-
-            length += other.getLength();
+            Insert(length, ACTL::move(other));
 
             return *this;
         }
@@ -310,6 +306,57 @@ export namespace ACTL {
             capacity = 0;
 
             data = nullptr;
+        }
+
+        // Inserts elements to array with copy construction.
+        // If index >= length, emplaces all elements at the back.
+        constexpr void Insert(u32 index, const Array& other) noexcept {
+            if (getLength() + other.getLength() > getCapacity() * 2)
+                Expand(other.getLength());
+            else if (getLength() + other.getLength() > getCapacity())
+                Expand();
+
+            if (index < getLength())
+                ShiftRight(index, other.getLength());
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.end(), begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < other.getLength(); i++)
+                    ACTL::Construct(data + index + i, other.begin()[i]);
+            }
+
+            length += other.getLength();
+        }
+
+        // Inserts elements to array with move construction.
+        // If index >= length, emplaces all elements at the back.
+        // Clears source array.
+        constexpr void Insert(u32 index, Array&& other) noexcept {
+            if (getLength() + other.getLength() > getCapacity() * 2)
+                Expand(other.getLength());
+            else if (getLength() + other.getLength() > getCapacity())
+                Expand();
+
+            if (index < getLength())
+                ShiftRight(index, other.getLength());
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.end(), begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < other.getLength(); i++)
+                    ACTL::Construct(data + index + i, ACTL::move(other.begin()[i]));
+            }
+
+            length += other.getLength();
+
+            other.Clear();
         }
 
         // Constructs a new element at the end of array and returns it.
@@ -700,6 +747,20 @@ export namespace ACTL {
 
         u32 length = 0;
 
+        constexpr void ShiftRight(u32 index, u32 count) noexcept {
+            auto b = data + length - 1;
+
+            auto e = data + index;
+
+            for (auto i = b; i >= e; i--) {
+                auto& s = *i;
+
+                ACTL::Construct(i + count, ACTL::move(s));
+
+                s.~Type();
+            }
+        }
+
     public:
         static_assert(capacity > 1);
 
@@ -749,6 +810,114 @@ export namespace ACTL {
             other.Clear();
 
             return *this;
+        }
+
+        // Inserts elements to array with copy construction.
+        // If index >= length, emplaces all elements at the back.
+        // Throws exception if array has no enough space.
+        constexpr void Insert(u32 index, const Array& other) {
+            if (getLength() + other.getLength() > getCapacity())
+                throw "Not enough space in array!";
+
+            if (index < getLength())
+                ShiftRight(index, other.getLength());
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.end(), begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < other.getLength(); i++)
+                    ACTL::Construct(data + index + i, other.begin()[i]);
+            }
+
+            length += other.getLength();
+        }
+
+        // Inserts elements to array with copy construction.
+        // If index >= length, emplaces all elements at the back.
+        // Inserts as much elements as possible.
+        constexpr void InsertOrLess(u32 index, const Array& other) noexcept {
+            auto count = other.getLength();
+
+            if (getLength() + count > getCapacity())
+                count = getCapacity() - getLength();
+
+            if (!count)
+                return;
+
+            if (index < getLength())
+                ShiftRight(index, count);
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.begin() + count, begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < count; i++)
+                    ACTL::Construct(data + index + i, other.begin()[i]);
+            }
+
+            length += count;
+        }
+
+        // Inserts elements to array with move construction.
+        // If index >= length, emplaces all elements at the back.
+        // Throws exception if array has no enough space.
+        // Clears source array.
+        constexpr void Insert(u32 index, Array&& other) {
+            if (getLength() + other.getLength() > getCapacity())
+                throw "Not enough space in array!";
+
+            if (index < getLength())
+                ShiftRight(index, other.getLength());
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.end(), begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < other.getLength(); i++)
+                    ACTL::Construct(data + index + i, ACTL::move(other.begin()[i]));
+            }
+
+            length += other.getLength();
+
+            other.Clear();
+        }
+
+        // Inserts elements to array with move construction.
+        // If index >= length, emplaces all elements at the back.
+        // Inserts as much elements as possible.
+        // Clears source array.
+        constexpr void InsertOrLess(u32 index, Array&& other) noexcept {
+            auto count = other.getLength();
+
+            if (getLength() + count > getCapacity())
+                count = getCapacity() - getLength();
+
+            if (!count)
+                return;
+
+            if (index < getLength())
+                ShiftRight(index, count);
+            else
+                index = getLength();
+
+            if constexpr (trivialCopy) {
+                std::copy(other.begin(), other.begin() + count, begin() + index);
+            }
+            else {
+                for (u32 i = 0; i < count; i++)
+                    ACTL::Construct(data + index + i, ACTL::move(other.begin()[i]));
+            }
+
+            length += count;
+
+            other.Clear();
         }
 
         // Constructs a new element at the end of array and returns it.

@@ -326,6 +326,26 @@ bool ConcatentaionTest() {
     return true;
 }
 
+bool InsertionTest() {
+    ACTL::Array<Class> array = {
+        0, 1, 2
+    };
+
+    array.Insert(0, { 4, 4 });
+
+    if (!Compare(array, {
+        Class(4), Class(4), Class(0), Class(1), Class(2)
+    })) return false;
+
+    array.Insert(2, { 5, 5, 5 });
+
+    if (!Compare(array, {
+        Class(4), Class(4), Class(5), Class(5), Class(5), Class(0), Class(1), Class(2)
+    })) return false;
+
+    return true;
+}
+
 bool StaticEmplaceAndEraseTest() {
     ACTL::StaticArray<Class, 4> array = {};
 
@@ -416,6 +436,11 @@ int main() {
         std::cout << "Concatentaion test: PASSED!" << std::endl;
     else
         std::cout << "Concatentaion test: FAILED!" << std::endl;
+
+    if (InsertionTest()) 
+        std::cout << "Insertion test: PASSED!" << std::endl;
+    else
+        std::cout << "Insertion test: FAILED!" << std::endl;
 
     if (StaticEmplaceAndEraseTest())
         std::cout << "Static Emplace and Erase test: PASSED!" << std::endl;
