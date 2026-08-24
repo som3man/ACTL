@@ -120,70 +120,13 @@ bool GettersTest() {
     return true;
 }
 
-bool HeapTest() {
-    ACTL::Option<ACTL::Heap<Class<int>>, ACTL::Heap<Class<float>>, Class<bool>> option = ACTL::Heap<Class<int>>(20);
-
-    if (!Class<int>::count || Class<float>::count || Class<bool>::count)
-        return false;
-
-    try {
-        if (option.GetOrExcept<ACTL::Heap<Class<int>>>().value != 20)
-            return false;
-    }
-    catch (const char*) {
-        return false;
-    }
-
-    option = Class<bool>(false);
-
-    if (Class<int>::count || Class<float>::count || !Class<bool>::count)
-        return false;
-
-    try {
-        auto v = option.GetOrExcept<ACTL::Heap<Class<int>>>();
-
-        return false;
-    }
-    catch (const char*) {}
-
-    try {
-        if (option.GetOrExcept<Class<bool>>().value == true)
-            return false;
-    }
-    catch (const char*) {
-        return false;
-    }
-
-    option.Set<ACTL::Heap<Class<float>>>(3.14f);
-
-    if (Class<int>::count || !Class<float>::count || Class<bool>::count)
-        return false;
-
-    try {
-        if (option.GetOrExcept<ACTL::Heap<Class<float>>>().value != 3.14f)
-            return false;
-    }
-    catch (const char*) {
-        return false;
-    }
-
-    try {
-        option = ACTL::Heap<Class<float>>();
-
-        return false;
-    }
-    catch (const char*) {};
-
-    return true;
-}
-
 bool VoidTest() {
-    ACTL::Option<ACTL::Void, ACTL::Heap<Class<int>>, Class<float>> option = {};
+    ACTL::Option<ACTL::Void, Class<int>, Class<float>> option = {};
 
     if (Class<int>::count || Class<float>::count)
         return false;
 
-    option = ACTL::Heap<Class<int>>(0);
+    option = Class<int>(0);
 
     if (!Class<int>::count || Class<float>::count)
         return false;
@@ -194,7 +137,7 @@ bool VoidTest() {
         return false;
 
     try {
-        auto v = option.GetOrExcept<ACTL::Heap<Class<int>>>();
+        auto v = option.GetOrExcept<Class<int>>();
 
         return false;
     }
@@ -233,11 +176,6 @@ int main() {
         std::cout << "Getters test: PASSED!" << std::endl;
     else
         std::cout << "Getters test: FAILED!" << std::endl;
-
-    if (HeapTest())
-        std::cout << "Heap test: PASSED!" << std::endl;
-    else
-        std::cout << "Heap test: FAILED!" << std::endl;
 
     if (VoidTest())
         std::cout << "Void test: PASSED!" << std::endl;

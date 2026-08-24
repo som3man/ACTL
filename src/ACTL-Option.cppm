@@ -24,9 +24,6 @@ SOFTWARE.
 
 module;
 
-#include <bit>
-#include <cstddef>
-#include <memory>
 #include <ostream>
 #include <type_traits>
 
@@ -51,549 +48,261 @@ namespace ACTL {
         return string << Char('v') << Char('o') << Char('i') << Char('d');
     }
 
-    // Unique pointer implementation.
-    export template <typename Type>
-    class Heap {
-        Type* pointer = nullptr;
+    template <u32 index, typename Type, typename... Other> requires(!std::is_reference_v<Type>)
+    union OptionLeaf {
+        using Next = OptionLeaf<index + 1, Other...>;
 
-    public:
-        constexpr Heap() noexcept {};
+        Type data;
 
-        template <typename... Args>
-        constexpr Heap(Args&&... args) noexcept {
-            Allocate(ACTL::forward<Args>(args)...);
-        }
+        Next next;
 
-        constexpr Heap(const Heap& other) noexcept {
-            operator=(other);
-        }
-
-        constexpr Heap(Heap&& other) noexcept {
-            operator=(ACTL::move(other));
-        }
-
-        constexpr ~Heap() noexcept {
-            Free();
-        }
-
-        // Assigns instances or allocates new.
-        // Does nothing if both heaps have no instances.
-        constexpr Heap& operator =(const Heap& other) noexcept {
-            if (pointer && other.pointer)
-                *pointer = *other.pointer;
-            else if (pointer)
-                Free();
-            else if (other.pointer)
-                Allocate(*other.pointer);
-
-            return *this;
-        }
-
-        // Moves pointer to instance memory.
-        constexpr Heap& operator =(Heap&& other) noexcept {
-            Free();
-
-            pointer = other.pointer;
-
-            other.pointer = nullptr;
-
-            return *this;
-        }
-
-        // Allocates and constructs instance.
-        // Frees previous instance.
-        template <typename... Args>
-        Type& Allocate(Args&&... args) noexcept {
-            Free();
-
-            pointer = ACTL::Allocate<Type>();
-
-            std::construct_at<Type>(pointer, ACTL::forward<Args>(args)...);
-
-            return *pointer;
-        }
-
-        // Frees and destructs instance.
-        // Does nothing if it has no instance.
-        void Free() noexcept {
-            if (pointer) {
-                pointer->~Type();
-
-                ACTL::Free(pointer);
-
-                pointer = nullptr;
-            }
-        }
-
-        [[nodiscard]] constexpr bool isAllocated() const noexcept {
-            return pointer;
-        }
-
-        [[nodiscard]] constexpr Type& GetOrExcept() {
-            if (pointer)
-                return *pointer;
-
-            throw "Heap is not allocated!";
-        }
-
-        [[nodiscard]] constexpr const Type& GetOrExcept() const {
-            if (pointer)
-                return *pointer;
-
-            throw "Heap is not allocated!";
-        }
-
-        [[nodiscard]] constexpr Type* operator ->() {
-            return &GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr const Type* operator ->() const {
-            return &GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr Type& operator *() {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr const Type& operator *() const {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr operator Type& () {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr operator const Type& () const {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr bool operator ==(std::nullptr_t) const noexcept {
-            return pointer == nullptr;
-        }
-
-        [[nodiscard]] constexpr bool operator !=(std::nullptr_t) const noexcept {
-            return pointer != nullptr;
-        }
-
-        template <typename Return = void>
-        constexpr Return Visit(auto&& forVoid, auto&& forType) noexcept {
-            if (pointer)
-                return forType(*pointer);
+        template <typename Target>
+        static consteval u8 getIndex() noexcept {
+            if constexpr (std::is_same_v<Type, Target>)
+                return index;
             else
-                return forVoid();
+                return Next::template getIndex<Target>();
         }
 
-        template <typename Return = void>
-        constexpr Return Visit(auto&& forVoid, auto&& forType) const noexcept {
-            if (pointer)
-                return forType(*pointer);
+        constexpr OptionLeaf() noexcept : next() {};
+
+        template <typename Target> requires(std::is_same_v<std::remove_cvref_t<Target>, Type>)
+        constexpr OptionLeaf(Target&& value) noexcept : data(ACTL::forward(value)) {};
+
+        template <typename Target>
+        constexpr OptionLeaf(Target&& value) noexcept : next(ACTL::forward(value)) {};
+
+        constexpr ~OptionLeaf() noexcept {};
+
+        constexpr void Destruct(u8 targetIndex) noexcept {
+            if (index == targetIndex)
+                data.~Type();
             else
-                return forVoid();
+                next.Destruct(targetIndex);
+        }
+
+        template <typename Target>
+        constexpr Target& get() noexcept {
+            if constexpr (std::is_same_v<Type, Target>)
+                return data;
+            else
+                return next.template get<Target>();
+        }
+
+        template <typename Target>
+        constexpr const Target& get() const noexcept {
+            if constexpr (std::is_same_v<Type, Target>)
+                return data;
+            else
+                return next.template get<Target>();
+        }
+
+        template <typename Return>
+        constexpr Return Visit(u8 targetIndex, auto&& func, auto&&... other) noexcept {
+            if (targetIndex == index)
+                return func(data);
+            else
+                return next.template Visit<Return>(targetIndex, ACTL::forward(other)...);
+        }
+
+        template <typename Return>
+        constexpr Return Visit(u8 targetIndex, auto&& func, auto&&... other) const noexcept {
+            if (targetIndex == index)
+                return func(data);
+            else
+                return next.template Visit<Return>(targetIndex, ACTL::forward(other)...);
         }
     };
 
-    export template <typename Char, typename Type>
-    std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Heap<Type>& heap) noexcept {
-        if (heap.isAllocated())
-            return ostream << heap.GetOrExcept();
-        else
-            return ostream << Void();
-    }
+    template <u32 index, typename Type> requires(!std::is_reference_v<Type>)
+    union OptionLeaf<index, Type> {
+        Type data;
 
-    export template <typename Char, typename Type>
-    constexpr String<Char>& operator <<(String<Char>& string, const Heap<Type>& heap) noexcept {
-        if (heap.isAllocated())
-            return string << heap.GetOrExcept();
-        else
-            return string << Void();
-    }
+        Void dummy;
 
-    template <typename Type>
-    struct IsHeap : std::false_type {};
+        template <typename Target>
+        static consteval u8 getIndex() noexcept {
+            if constexpr (std::is_same_v<Type, Target>)
+                return index;
+            else
+                return u8max;
+        }
 
-    template <typename... Args>
-    struct IsHeap<Heap<Args...>> : std::true_type {};
+        constexpr OptionLeaf() noexcept : dummy() {};
 
-    export template <typename Type>
-    constexpr bool isHeap = IsHeap<Type>::value;
+        template <typename Target> requires(std::is_same_v<std::remove_cvref_t<Target>, Type>)
+        constexpr OptionLeaf(Target&& value) noexcept : data(ACTL::forward(value)) {};
 
-    // Type-safe union implementation.
-    // Option can have null state if Void is stored type.
+        template <typename Target>
+        constexpr OptionLeaf(Target&&) {
+            static_assert(false, "Invalid type!");
+        }
+
+        constexpr ~OptionLeaf() noexcept {};
+
+        constexpr void Destruct(u8 targetIndex) noexcept {
+            data.~Type();
+        }
+
+        template <typename Target>
+        constexpr Target& get() noexcept {
+            return data;
+        }
+
+        template <typename Target>
+        constexpr const Target& get() const noexcept {
+            return data;
+        }
+
+        template <typename Return>
+        constexpr Return Visit(u8 targetIndex, auto&& func) noexcept {
+            return func(data);
+        }
+
+        template <typename Return>
+        constexpr Return Visit(u8 targetIndex, auto&& func) const noexcept {
+            return func(data);
+        }
+    };
+
     export template <typename... Types>
     class Option {
-        template <typename Type, typename... Other>
-        static consteval size GetMaxSize(size prev) noexcept {
-            size curr = sizeof(Type);
+        using Leaf = OptionLeaf<0, Types...>;
 
-            size next = curr > prev ? curr : prev;
+        Leaf leaf;
 
-            if constexpr (sizeof...(Other))
-                return GetMaxSize<Other...>(next);
-            
-            return next;
-        }
-
-        template <typename Type, typename... Other>
-        static consteval size GetMaxAlign(size prev) noexcept {
-            size curr = alignof(Type);
-
-            size next = curr > prev ? curr : prev;
-
-            if constexpr (sizeof...(Other))
-                return GetMaxAlign<Other...>(next);
-            
-            return next;
-        }
-
-        alignas(GetMaxAlign<Types...>(1)) byte data[GetMaxSize<Types...>(1)] = {};
-
-        template <typename Target, typename Type, typename... Other>
-        static consteval byte GetIndex(byte index) noexcept {
-            if constexpr (std::is_same_v<Target, Type>)
-                return index;
-
-            if constexpr (sizeof...(Other))
-                return GetIndex<Target, Other...>(index + 1);
-
-            return u8max;
-        }
-
-        byte typeIndex = GetIndex<Void, Types...>(0);
+        u8 index;
 
         template <typename Type>
-        constexpr Type* Cast() noexcept {
-            return std::bit_cast<Type*, byte*>(data);
+        static consteval u8 getIndex() noexcept {
+            return Leaf::template getIndex<std::remove_cvref_t<Type>>();
         }
 
         template <typename Type>
-        constexpr const Type* Cast() const noexcept {
-            return std::bit_cast<const Type*, const byte*>(data);
+        static consteval bool has() noexcept {
+            return getIndex<std::remove_cvref_t<Type>>() != u8max;
         }
 
-        template <byte index, typename Type, typename... Other>
         constexpr void Destruct() noexcept {
-            if (typeIndex != index) {
-                if constexpr (sizeof...(Other))
-                    Destruct<index + 1, Other...>();
-
-                return;
-            }
-
-            if constexpr (!std::is_trivially_destructible_v<Type>)
-                Cast<Type>()->~Type();
-        }
-
-        template <byte index, typename Type, typename... Other>
-        constexpr void Copy(const Option& other) noexcept {
-            if (index == other.typeIndex) {
-                if (typeIndex == index)
-                    *Cast<Type>() = *other.Cast<Type>();
-                else
-                    Set<Type>(*other.Cast<Type>());
-
-                return;
-            }
-
-            if constexpr (sizeof...(Other))
-                Copy<index + 1, Other...>(other);
-        }
-
-        template <byte index, typename Type, typename... Other>
-        constexpr void Move(Option&& other) noexcept {
-            if (index == other.typeIndex) {
-                if constexpr (isHeap<Type> && !hasVoid) {
-                    if (typeIndex == index)
-                        Cast<Type>()->GetOrExcept() = ACTL::move(other.Cast<Type>()->GetOrExcept());
-                    else
-                        Set<Type>(ACTL::move(other.Cast<Type>()->GetOrExcept()));
-                }
-                else {
-                    if (typeIndex == index)
-                        *Cast<Type>() = ACTL::move(*other.Cast<Type>());
-                    else
-                        Set<Type>(ACTL::move(*other.Cast<Type>()));
-                }
-
-                return;
-            }
-
-            if constexpr (sizeof...(Other))
-                Move<index + 1, Other...>(ACTL::move(other));
-        }
-
-        template <byte index, typename Char, typename Type, typename... Other>
-        void ToOstreamImpl(std::basic_ostream<Char>& ostream) const noexcept {
-            if (typeIndex == index) {
-                ostream << *Cast<Type>();
-
-                return;
-            }
-
-            if constexpr (sizeof...(Other))
-                ToOstreamImpl<index + 1, Char, Other...>(ostream);
-        }
-
-        template <byte index, typename Char, typename Type, typename... Other>
-        void ToStringImpl(String<Char>& string) const noexcept {
-            if (typeIndex == index) {
-                string << *Cast<Type>();
-
-                return;
-            }
-
-            if constexpr (sizeof...(Other))
-                ToStringImpl<index + 1, Char, Other...>(string);
-        }
-
-        template <byte index, typename Return, typename Type, typename... Other>
-        constexpr Return VisitImpl(auto&& func, auto&&... other) noexcept {
-            if (index == typeIndex) {
-                if constexpr (std::is_same_v<Void, Type>)
-                    return func();
-                else
-                    return func(*Cast<Type>());
-            }
-
-            if constexpr (sizeof...(Other))
-                return VisitImpl<index + 1, Return, Other...>(other...);
-            else {
-                if constexpr (std::is_same_v<Void, Type>)
-                    return func();
-                else
-                    return func(*Cast<Type>());
-            }
-        }
-
-        template <byte index, typename Return, typename Type, typename... Other>
-        constexpr Return VisitImpl(auto&& func, auto&&... other) const noexcept {
-            if (index == typeIndex) {
-                if constexpr (std::is_same_v<Void, Type>)
-                    return func();
-                else
-                    return func(*Cast<Type>());
-            }
-
-            if constexpr (sizeof...(Other))
-                return VisitImpl<index + 1, Return, Other...>(other...);
-            else {
-                if constexpr (std::is_same_v<Void, Type>)
-                    return func();
-                else
-                    return func(*Cast<Type>());
-            }
+            leaf.Destruct(index);
         }
 
     public:
-        static constexpr bool hasVoid = GetIndex<Void, Types...>(0) != u8max;
+        constexpr Option() noexcept : leaf(Void()), index(getIndex<Void>()) {};
 
-        // Requires Void as stored type.
-        constexpr Option() noexcept {
-            static_assert(hasVoid);
+        template <typename Type> requires(has<Type>())
+        constexpr Option(Type&& value) noexcept : leaf(ACTL::forward(value)), index(getIndex<Type>()) {};
+
+        constexpr Option(const Option& other) noexcept : leaf(), index(other.index) {
+            other.Visit([&](const Types& value) {
+                ACTL::Construct(&leaf, value);
+            }...);
         }
 
-        // Constructs forwarded type.
-        // If forwarded Heap is unallocated, sets Void.
-        // If Option has no Void, throws exception.
-        template <typename Type>
-        constexpr Option(Type&& value) {
-            using NoRef = std::remove_reference_t<Type>;
-
-            constexpr byte index = GetIndex<NoRef, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            if constexpr (isHeap<NoRef>) {
-                if (!value.isAllocated()) {
-                    if constexpr (hasVoid)
-                        return;
-                    else
-                        throw "Unallocated heap cannot be assigned to option without void!";
-                }
-            }
-
-            std::construct_at(Cast<NoRef>(), ACTL::forward(value));
-
-            typeIndex = index;
-        }
-
-        constexpr Option(const Option& other) noexcept {
-            operator=(other);
-        }
-
-        constexpr Option(Option&& other) noexcept {
-            operator=(ACTL::move(other));
+        constexpr Option(Option&& other) noexcept : leaf(), index(other.index) {
+            other.Visit([&](Types& value) {
+                ACTL::Construct(&leaf, ACTL::move(value));
+            }...);
         }
 
         constexpr ~Option() noexcept {
-            Destruct<0, Types...>();
+            Destruct();
         }
 
         constexpr Option& operator =(const Option& other) noexcept {
-            Copy<0, Types...>(other);
+            other.Visit([&](const Types& value) {
+                if (index == other.index)
+                    leaf.template get<Types>() = value;
+                else
+                    Set<Types>(value);
+            }...);
 
             return *this;
         }
 
         constexpr Option& operator =(Option&& other) noexcept {
-            Move<0, Types...>(ACTL::move(other));
+            other.Visit([&](Types& value) {
+                if (index == other.index)
+                    leaf.template get<Types>() = ACTL::move(value);
+                else
+                    Set<Types>(ACTL::move(value));
+            }...);
 
             return *this;
         }
 
-        // Checks if Type is initialized in Option.
-        template <typename Type>
-        [[nodiscard]] constexpr bool is() const noexcept {
-            constexpr byte index = GetIndex<Type, Types...>(0);
+        template <typename Type, typename... Args> requires(has<Type>())
+        constexpr Type& Set(Args&&... args) noexcept {
+            Destruct();
 
-            return typeIndex == index;
+            ACTL::Construct(&leaf, Type(ACTL::forward<Args>(args)...));
+
+            index = getIndex<Type>();
+
+            return leaf.template get<Type>();
         }
 
-        [[nodiscard]] constexpr bool isVoid() const noexcept {
-            return is<Void>();
+        constexpr void Clear() noexcept {
+            Set<Void>();
         }
 
-        [[nodiscard]] constexpr bool notVoid() const noexcept {
-            return !is<Void>();
+        template <typename Type> requires(has<Type>())
+        constexpr bool is() const noexcept {
+            return getIndex<Type>() == index;
         }
 
-        [[nodiscard]] constexpr operator bool() const noexcept {
-            return notVoid();
+        template <typename Type> requires(has<Type>())
+        constexpr Type& GetOrExcept() {
+            if (is<Type>())
+                return leaf.template get<Type>();
+
+            throw "This type is not initialized!";
         }
 
-        template <typename Type, typename... Args>
-        constexpr auto& Set(Args&&... args) noexcept {
-            Destruct<0, Types...>();
+        template <typename Type> requires(has<Type>())
+        constexpr const Type& GetOrExcept() const {
+            if (is<Type>())
+                return leaf.template get<Type>();
 
-            constexpr byte index = GetIndex<Type, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            typeIndex = index;
-
-            if constexpr (std::is_same_v<Void, Type>) {
-                return *Cast<Type>();
-            }
-            else if constexpr (isHeap<Type>) {
-                std::construct_at<Type>(Cast<Type>());
-
-                return Cast<Type>()->Allocate(ACTL::forward<Args>(args)...);
-            }
-            else {
-                std::construct_at(Cast<Type>(), ACTL::forward<Args>(args)...);
-
-                return *Cast<Type>();
-            }
+            throw "This type is not initialized!";
         }
 
-        template <typename Type>
-        [[nodiscard]] constexpr auto& GetOrExcept() {
-            static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
+        template <typename Type, typename... Args> requires(has<Type>())
+        constexpr Type GetOrNew(Args&&... args) const noexcept {
+            if (is<Type>())
+                return leaf.template get<Type>();
 
-            constexpr byte index = GetIndex<Type, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            if (index != typeIndex)
-                throw "This type is not initialized!";
-
-            if constexpr (isHeap<Type>)
-                return Cast<Type>()->GetOrExcept();
-            else
-                return *Cast<Type>();
+            return Type(ACTL::forward<Args>(args)...);
         }
 
-        template <typename Type>
-        [[nodiscard]] constexpr const auto& GetOrExcept() const {
-            static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
+        template <typename Type, typename... Args> requires(has<Type>())
+        constexpr Type& GetOrSet(Args&&... args) noexcept {
+            if (is<Type>())
+                return leaf.template get<Type>();
 
-            constexpr byte index = GetIndex<Type, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            if (index != typeIndex)
-                throw "This type is not initialized!";
-
-            if constexpr (isHeap<Type>)
-                return Cast<Type>()->GetOrExcept();
-            else
-                return *Cast<Type>();
+            return Set<Type>(ACTL::forward<Args>(args)...);
         }
 
-        template <typename Type, typename... Args>
-        [[nodiscard]] constexpr const auto GetOrNew(Args&&... args) const noexcept {
-            static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
-
-            constexpr byte index = GetIndex<Type, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            if (index != typeIndex)
-                return Type(ACTL::forward<Args>(args)...);
-
-            if constexpr (isHeap<Type>)
-                return Cast<Type>()->GetOrExcept();
-            else
-                return *Cast<Type>();
+        template <typename Return = void, typename... Funcs> requires(sizeof...(Funcs) == sizeof...(Types))
+        constexpr Return Visit(Funcs&&... funcs) noexcept {
+            return leaf.template Visit<Return>(index, ACTL::forward<Funcs>(funcs)...);
         }
 
-        template <typename Type, typename... Args>
-        [[nodiscard]] constexpr auto& GetOrSet(Args&&... args) noexcept {
-            static_assert(!std::is_same_v<Type, Void>, "Void cannot be got!");
-
-            constexpr byte index = GetIndex<Type, Types...>(0);
-
-            static_assert(index != u8max, "Invalid type!");
-
-            if (index != typeIndex)
-                return Set<Type>(ACTL::forward<Args>(args)...);
-
-            if constexpr (isHeap<Type>)
-                return Cast<Type>()->GetOrExcept();
-            else
-                return *Cast<Type>();
-        }
-
-        template <typename Return = void>
-        constexpr Return Visit(auto&&... funcs) noexcept {
-            static_assert(sizeof...(funcs) == sizeof...(Types));
-
-            return VisitImpl<0, Return, Types...>(funcs...);
-        }
-
-        template <typename Return = void>
-        constexpr Return Visit(auto&&... funcs) const noexcept {
-            static_assert(sizeof...(funcs) == sizeof...(Types));
-
-            return VisitImpl<0, Return, Types...>(funcs...);
-        }
-
-        template <typename Char>
-        std::basic_ostream<Char>& ToOstream(std::basic_ostream<Char>& ostream) const noexcept {
-            ToOstreamImpl<0, Char, Types...>(ostream);
-
-            return ostream;
-        }
-
-        template <typename Char>
-        constexpr String<Char>& ToString(String<Char>& string) const noexcept {
-            ToStringImpl<0, Char, Types...>(string);
-
-            return string;
+        template <typename Return = void, typename... Funcs> requires(sizeof...(Funcs) == sizeof...(Types))
+        constexpr Return Visit(Funcs&&... funcs) const noexcept {
+            return leaf.template Visit<Return>(index, ACTL::forward<Funcs>(funcs)...);
         }
     };
 
     export template <typename Char, typename... Types>
     std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Option<Types...>& option) noexcept {
-        return option.ToOstream(ostream);
+        option.Visit([&](const Types& value) {
+            ostream << value;
+        }...);
+
+        return ostream;
     }
 
-    export template <typename Char, typename... Types>
-    constexpr String<Char>& operator <<(String<Char>& string, const Option<Types...>& option) noexcept {
-        return option.ToString(string);
-    }
-
-    // Single-type specialization of Option.
-    // Works as a regular optional type.
     export template <typename Type>
     class Option<Type> {
     public:
@@ -603,7 +312,7 @@ namespace ACTL {
 
         template <typename... Args>
         constexpr Option(Args&&... args) noexcept {
-            Construct(ACTL::forward<Args>(args)...);
+            Set(ACTL::forward<Args>(args)...);
         }
 
         constexpr Option(const Option& other) noexcept {
@@ -629,107 +338,112 @@ namespace ACTL {
         }
 
         template <typename... Args>
-        constexpr Type& Construct(Args&&... args) noexcept {
+        constexpr Type& Set(Args&&... args) noexcept {
             return data.template Set<Type>(ACTL::forward<Args>(args)...);
         }
 
-        constexpr void Destruct() noexcept {
-            data.template Set<Void>();
+        constexpr void Clear() noexcept {
+            return data.Clear();
         }
 
-        [[nodiscard]] constexpr bool isConstructed() const noexcept {
-            return data.notVoid();
+        constexpr bool isCreated() const noexcept {
+            return data.template is<Type>();
         }
 
-        [[nodiscard]] constexpr Type& GetOrExcept() {
+        constexpr operator bool() const noexcept {
+            return isCreated();
+        }
+
+        constexpr Type& GetOrExcept() {
             return data.template GetOrExcept<Type>();
         }
 
-        [[nodiscard]] constexpr const Type& GetOrExcept() const {
+        constexpr const Type& GetOrExcept() const {
             return data.template GetOrExcept<Type>();
         }
 
         template <typename... Args>
-        [[nodiscard]] constexpr Type GetOrNew(Args&&... args) const noexcept {
+        constexpr Type GetOrNew(Args&&... args) const noexcept {
             return data.template GetOrNew<Type>(ACTL::forward<Args>(args)...);
         }
 
         template <typename... Args>
-        [[nodiscard]] constexpr Type& GetOrSet(Args&&... args) noexcept {
+        constexpr Type& GetOrSet(Args&&... args) noexcept {
             return data.template GetOrSet<Type>(ACTL::forward<Args>(args)...);
         }
 
-        [[nodiscard]] constexpr Type* operator ->() {
-            return &GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr const Type* operator ->() const {
-            return &GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr Type& operator *() {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr const Type& operator *() const {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr operator Type& () {
-            return GetOrExcept();
-        }
-
-        [[nodiscard]] constexpr operator const Type& () const {
-            return GetOrExcept();
+        template <typename Return = void>
+        constexpr Return Visit(auto&& ifVoid, auto&& ifData) noexcept {
+            return data.template Visit<Return>(
+                ACTL::forward(ifVoid),
+                ACTL::forward(ifData)
+            );
         }
 
         template <typename Return = void>
-        constexpr Return Visit(auto&& forVoid, auto&& forType) noexcept {
-            return data.template Visit<Return>(ACTL::forward(forVoid), ACTL::forward(forType));
+        constexpr Return Visit(auto&& ifVoid, auto&& ifData) const noexcept {
+            return data.template Visit<Return>(
+                ACTL::forward(ifVoid),
+                ACTL::forward(ifData)
+            );
         }
 
-        template <typename Return = void>
-        constexpr Return Visit(auto&& forVoid, auto&& forType) const noexcept {
-            return data.template Visit<Return>(ACTL::forward(forVoid), ACTL::forward(forType));
+        constexpr Type& operator *() noexcept {
+            return GetOrExcept();
+        }
+
+        constexpr const Type& operator *() const noexcept {
+            return GetOrExcept();
+        }
+
+        constexpr Type* operator ->() noexcept {
+            return &GetOrExcept();
+        }
+
+        constexpr const Type* operator ->() const noexcept {
+            return &GetOrExcept();
+        }
+
+        constexpr operator Type& () noexcept {
+            return GetOrExcept();
+        }
+
+        constexpr operator const Type& () const noexcept {
+            return GetOrExcept();
         }
     };
 
     export template <typename Char, typename Type>
     std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Option<Type>& option) noexcept {
-        return ostream << option.data;
+        option.Visit(
+            [&](Void) {
+                ostream << Void();
+            },
+            [&](const Type& value) {
+                ostream << value;
+            }
+        );
+
+        return ostream;
     }
 
-    export template <typename Char, typename Type>
-    constexpr String<Char>& operator <<(String<Char>& string, const Option<Type>& option) noexcept {
-        return string << option.data;
-    }
-
-    export template <typename Success, typename Fail = Void>
+    export template <typename SuccessType, typename FailType = Void>
     class Result {
-        Option<Success, Fail> option;
+        Option<SuccessType, FailType> option;
 
-        constexpr Result() noexcept {};
-
-        constexpr Result(Fail&& fail) noexcept : option(ACTL::forward(fail)) {};
+        constexpr Result(FailType&& fail) noexcept : option(forward(fail)) {};
 
     public:
-        [[nodiscard]] static constexpr Result Failed() noexcept {
-            static_assert(std::is_same_v<Void, Fail>);
-
-            return {};
-        }
-        
-        [[nodiscard]] static constexpr Result Failed(Fail&& fail) noexcept {
-            static_assert(!std::is_same_v<Void, Fail>);
-
-            return Result(ACTL::forward(fail));
+        template <typename... Args>
+        static constexpr Result Fail(Args&&... args) noexcept {
+            return Result(FailType(forward<Args>(args)...));
         }
 
-        constexpr Result(Success&& success) noexcept : option(ACTL::forward(success)) {};
+        constexpr Result(SuccessType&& success) noexcept : option(forward(success)) {};
 
         constexpr Result(const Result& other) noexcept : option(other.option) {};
 
-        constexpr Result(Result&& other) noexcept : option(ACTL::move(other.option)) {};
+        constexpr Result(Result&& other) noexcept : option(move(other.option)) {};
 
         constexpr ~Result() noexcept {};
 
@@ -740,99 +454,97 @@ namespace ACTL {
         }
 
         constexpr Result& operator =(Result&& other) noexcept {
-            option = ACTL::move(other.option);
+            option = move(other.option);
 
             return *this;
         }
 
-        [[nodiscard]] constexpr bool isSuccess() const noexcept {
-            return option.template is<Success>();
+        template <typename... Args>
+        constexpr SuccessType& Set(Args&&... args) noexcept {
+            return option.template Set<SuccessType>(forward<Args>(args)...);
         }
 
-        [[nodiscard]] constexpr operator bool() const noexcept {
+        template <typename... Args>
+        constexpr FailType& SetFail(Args&&... args) noexcept {
+            return option.template Set<FailType>(forward<Args>(args)...);
+        }
+
+        constexpr bool isSuccess() const noexcept {
+            return option.template is<SuccessType>();
+        }
+
+        constexpr operator bool() const noexcept {
             return isSuccess();
         }
 
-        [[nodiscard]] constexpr operator Success& () {
-            if (isSuccess())
-                return option.template GetOrExcept<Success>();
-
-            throw "The Result is fail!";
+        constexpr SuccessType& Get() {
+            return option.template GetOrExcept<SuccessType>();
         }
 
-        [[nodiscard]] constexpr operator const Success& () const {
-            if (isSuccess())
-                return option.template GetOrExcept<Success>();
-
-            throw "The Result is fail!";
+        constexpr const SuccessType& Get() const {
+            return option.template GetOrExcept<SuccessType>();
         }
 
-        [[nodiscard]] constexpr Success& operator *() {
-            return operator Success&();
+        constexpr FailType& GetFail() {
+            return option.template GetOrExcept<FailType>();
         }
 
-        [[nodiscard]] constexpr const Success& operator *() const {
-            return operator const Success& ();
+        constexpr const FailType& GetFail() const {
+            return option.template GetOrExcept<FailType>();
         }
 
-        [[nodiscard]] constexpr Success* operator ->() {
-            return &(operator Success&());
+        constexpr SuccessType& operator *() {
+            return Get();
         }
 
-        [[nodiscard]] constexpr const Success* operator ->() const {
-            return &(operator const Success& ());
+        constexpr const SuccessType& operator *() const {
+            return Get();
         }
 
-        constexpr Fail& GetFail() {
-            if (isSuccess())
-                throw "The Result is success!";
-
-            return option.template GetOrExcept<Fail>();
+        constexpr SuccessType* operator ->() {
+            return &Get();
         }
 
-        constexpr const Fail& GetFail() const {
-            if (isSuccess())
-                throw "The Result is success!";
+        constexpr const SuccessType* operator ->() const {
+            return &Get();
+        }
 
-            return option.template GetOrExcept<Fail>();
+        constexpr operator SuccessType& () {
+            return Get();
+        }
+
+        constexpr operator const SuccessType& () const {
+            return Get();
         }
 
         template <typename Return = void>
-        constexpr Return Visit(auto&& forSuccess, auto&& forFail) noexcept {
-            return option.Visit(ACTL::forward(forSuccess), ACTL::forward(forFail));
+        constexpr Return Visit(auto&& ifSuccess, auto&& ifFail) noexcept {
+            return option.template Visit<Return>(
+                forward(ifSuccess),
+                forward(ifFail)
+            );
         }
 
         template <typename Return = void>
-        constexpr Return Visit(auto&& forSuccess, auto&& forFail) const noexcept {
-            return option.Visit(ACTL::forward(forSuccess), ACTL::forward(forFail));
+        constexpr Return Visit(auto&& ifSuccess, auto&& ifFail) const noexcept {
+            return option.template Visit<Return>(
+                forward(ifSuccess),
+                forward(ifFail)
+            );
         }
     };
 
     export template <typename Char, typename Success, typename Fail>
     std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Result<Success, Fail>& result) noexcept {
-        if (result.isSuccess()) {
-            const Success& success = result;
+        result.Visit(
+            [&](const Success& success) {
+                ostream << success;
+            },
+            [&](const Fail& fail) {
+                ostream << fail;
+            }
+        );
 
-            return ostream << result;
-        }
-        else {
-            const Fail& fail = result.GetFail();
-
-            return ostream << fail;
-        }
-    }
-
-    export template <typename Char, typename Success, typename Fail>
-    constexpr String<Char>& operator <<(String<Char>& string, const Result<Success, Fail>& result) noexcept {
-        if (result.isSuccess()) {
-            const Success& success = result;
-
-            return string << result;
-        }
-        else {
-            const Fail& fail = result.GetFail();
-
-            return string << fail;
-        }
+        return ostream;
     }
 }
