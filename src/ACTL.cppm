@@ -38,6 +38,7 @@ export import :Map;
 export import :Sort;
 export import :Option;
 export import :Delegate;
+export import :Heap;
 
 export namespace ACTL {
     template <typename TypeA, typename TypeB = TypeA>

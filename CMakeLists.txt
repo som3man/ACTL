@@ -29,5 +29,6 @@ target_sources(ACTL PUBLIC FILE_SET CXX_MODULES FILES
     src/ACTL-Defines.cppm
     src/ACTL-Option.cppm
     src/ACTL-Delegate.cppm
+    src/ACTL-Heap.cppm
     src/ACTL.cppm
 )
