@@ -1,0 +1,44 @@
+[
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Main.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Main.cppm.o -c /other/Development/ACTL/src/Main.cppm",
+  "file": "/other/Development/ACTL/src/Main.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Main.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Defines.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Defines.cppm.o -c /other/Development/ACTL/src/Defines.cppm",
+  "file": "/other/Development/ACTL/src/Defines.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Defines.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Fixed.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Fixed.cppm.o -c /other/Development/ACTL/src/Fixed.cppm",
+  "file": "/other/Development/ACTL/src/Fixed.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Fixed.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Array.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Array.cppm.o -c /other/Development/ACTL/src/Array.cppm",
+  "file": "/other/Development/ACTL/src/Array.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Array.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/String.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/String.cppm.o -c /other/Development/ACTL/src/String.cppm",
+  "file": "/other/Development/ACTL/src/String.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/String.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Option.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Option.cppm.o -c /other/Development/ACTL/src/Option.cppm",
+  "file": "/other/Development/ACTL/src/Option.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Option.cppm.o"
+},
+{
+  "directory": "/other/Development/ACTL/Test/build",
+  "command": "/usr/bin/clang++ -g -std=c++20 @ACTL/CMakeFiles/ACTL.dir/src/Heap.cppm.o.modmap -o ACTL/CMakeFiles/ACTL.dir/src/Heap.cppm.o -c /other/Development/ACTL/src/Heap.cppm",
+  "file": "/other/Development/ACTL/src/Heap.cppm",
+  "output": "/other/Development/ACTL/Test/build/ACTL/CMakeFiles/ACTL.dir/src/Heap.cppm.o"
+}
+]
