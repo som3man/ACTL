@@ -1,2 +1,4 @@
 Test/.cache
 Test/build
+.cache
+.vscode
