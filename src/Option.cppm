@@ -473,4 +473,101 @@ namespace ACTL {
 
         return string;
     }
+
+    consteval bool SingleOptionTest() {
+        u32 counter = 0;
+
+        Option<Class> option = Void();
+
+        option = Class(123, counter);
+
+        if (counter != 1)
+            return false;
+
+        if (!option)
+            return false;
+
+        if (option->data != 123)
+            return false;
+
+        option = Void();
+
+        if (counter != 0)
+            return false;
+
+        if (option)
+            return false;
+
+        return true;
+    }
+
+    static_assert(SingleOptionTest(), "Single Option test is FAILED!");
+
+    template <u32>
+    class Tclass {
+    public:
+        u32& counter;
+
+        i32 value;
+
+        constexpr Tclass(u32& counter, i32 value) : counter(counter), value(value) {
+            counter++;
+        }
+
+        constexpr Tclass(const Tclass& other) : counter(other.counter), value(other.value) {
+            counter++;
+        }
+
+        constexpr Tclass(Tclass&& other) : counter(other.counter), value(other.value) {
+            counter++;
+        }
+
+        constexpr ~Tclass() {
+            counter--;
+        }
+
+        constexpr Tclass& operator =(const Tclass& other) {
+            value = other.value;
+
+            return *this;
+        }
+
+        constexpr Tclass& operator =(Tclass&& other) {
+            value = other.value;
+
+            return *this;
+        }
+    };
+
+    consteval bool OptionTest() {
+        u32 counters[3] = {};
+
+        Option<Tclass<0>, Tclass<1>, Tclass<2>> option = Tclass<0>(counters[0], 10);
+
+        static_assert(sizeof(Tclass<0>) + 8 == sizeof(Option<Tclass<0>, Tclass<1>, Tclass<2>>));
+
+        if (counters[0] != 1)
+            return false;
+
+        if (option.Get<Tclass<0>>().value != 10)
+            return false;
+
+        option = Tclass<2>(counters[2], 56);
+
+        if (counters[0] != 0)
+            return false;
+
+        if (counters[2] != 1)
+            return false;
+
+        if (option.Get<Tclass<2>>().value != 56)
+            return false;
+
+        if (option.GetOr<Tclass<1>>(counters[1], -6).value != -6)
+            return false;
+
+        return true;
+    }
+
+    static_assert(OptionTest(), "Option test is FAILED!");
 }
