@@ -854,6 +854,30 @@ namespace ACTL {
             return Symbol::Convert(s, GetSymLength(*s));
         }
 
+        // Copies range of symbols into new string and returns it.
+        // Returns an empty string if index >= length or count == 0.
+        constexpr String Get(u32 index, u32 count) const noexcept {
+            if (!count || index >= symbolLength)
+                return String();
+
+            if (index + count > symbolLength)
+                count = symbolLength - index;
+
+            auto b = begin() + GetByteIndex(index, begin());
+
+            auto e = b + GetByteIndex(count, b);
+
+            String result = {};
+
+            result.symbolLength = count;
+
+            result.array.EmplaceBackMany(e - b + 1, null);
+
+            std::copy(b, e, result.array.begin());
+
+            return result;
+        }
+
         // Returns UTF-8 unit count excluding null-terminator.
         constexpr u32 getByteLength() const noexcept {
             return array ? array.getLength() - 1 : 0;
@@ -1432,6 +1456,23 @@ namespace ACTL {
         string.Set(8, "ї");
 
         if (!Compare(string, "Маksиwїїї"))
+            return false;
+
+        string = "Иvан Иваныч";
+
+        if (!Compare(string.Get(0, 5), "Иvан "))
+            return false;
+
+        if (!Compare(string.Get(5, 1), "И"))
+            return false;
+
+        if (!Compare(string.Get(5, 6), "Иваныч"))
+            return false;
+
+        if (!Compare(string.Get(5, 7), "Иваныч"))
+            return false;
+
+        if (!Compare(string.Get(23, 6), ""))
             return false;
 
         return true;
