@@ -284,9 +284,20 @@ namespace ACTL {
     // Shared heap memory reference.
     export template <typename Type> requires(!std::is_reference_v<Type> && !std::is_same_v<Void, Type>)
     class Shared {
-        Type* data = nullptr;
+        struct Cont {
+            Type data;
 
-        u32* counter = nullptr;
+            u32 counter;
+
+            template <typename... Args>
+            constexpr Cont(Args&&... args) noexcept(std::is_nothrow_constructible_v<Type, Args...>) : data(Forward<Args>(args)...) {
+                counter = 1;
+            }
+
+            constexpr ~Cont() noexcept(std::is_nothrow_destructible_v<Type>) {};
+        };
+        
+        Cont* cont = nullptr;
 
     public:
         // Null state initializer. Can be constinit.
@@ -311,12 +322,10 @@ namespace ACTL {
         constexpr Shared& operator =(const Shared& other) noexcept(std::is_nothrow_destructible_v<Type>) {
             Drop();
 
-            data = other.data;
+            cont = other.cont;
 
-            counter = other.counter;
-
-            if (counter)
-                *counter += 1;
+            if (cont)
+                cont->counter += 1;
 
             return *this;
         }
@@ -325,9 +334,9 @@ namespace ACTL {
         constexpr Shared& operator =(Shared&& other) noexcept(std::is_nothrow_destructible_v<Type>) {
             Drop();
 
-            Swap(data, other.data);
+            cont = other.cont;
 
-            Swap(counter, other.counter);
+            other.cont = nullptr;
 
             return *this;
         }
@@ -337,70 +346,36 @@ namespace ACTL {
         constexpr Type& Allocate(Args&&... args) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Type, Args...>) {
             Drop();
 
-            std::allocator<Type> dalloc = {};
+            std::allocator<Cont> alloc = {};
 
-            data = dalloc.allocate(1);
+            cont = alloc.allocate(1);
 
-            std::construct_at(data, Forward<Args>(args)...);
+            std::construct_at(cont, Forward<Args>(args)...);
 
-            std::allocator<u32> calloc = {};
-
-            counter = calloc.allocate(1);
-
-            std::construct_at(counter, 1);
-
-            return *data;
-        }
-
-        // Allocates new derived data. Shared will reference to it.
-        // Type MUST have virtual destructor.
-        template <typename Child, typename... Args> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
-        constexpr Child& AllocateChild(Args&&... args) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Child, Args...>) {
-            Drop();
-
-            std::allocator<Child> dalloc = {};
-
-            auto p = dalloc.allocate(1);
-
-            std::construct_at(p, Forward<Args>(args)...);
-
-            data = static_cast<Type*>(p);
-
-            std::allocator<u32> calloc = {};
-
-            counter = calloc.allocate(1);
-
-            *counter = 1;
-
-            return *p;
+            return cont->data;
         }
 
         // Drops referencing. Referencing data is deleted if it has no references.
         constexpr void Drop() noexcept(std::is_nothrow_destructible_v<Type>) {
-            if (!data)
+            if (!cont)
                 return;
 
-            *counter -= 1;
+            cont->counter -= 1;
 
-            if (*counter == 0) {
-                data->~Type();
+            if (cont->counter)
+                return;
 
-                std::allocator<Type> dalloc = {};
+            cont->~Cont();
 
-                dalloc.deallocate(data, 1);
+            std::allocator<Cont> alloc = {};
 
-                std::allocator<u32> call = {};
+            alloc.deallocate(cont, 1);
 
-                call.deallocate(counter, 1);
-            }
-
-            counter = nullptr;
-
-            data = nullptr;
+            cont = nullptr;
         }
 
         constexpr bool notVoid() const noexcept {
-            return data;
+            return cont;
         }
 
         constexpr bool isVoid() const noexcept {
@@ -413,8 +388,8 @@ namespace ACTL {
 
         // Throws exception if Shared has no reference.
         constexpr Type& Get() const {
-            if (data)
-                return *data;
+            if (cont)
+                return cont->data;
 
             throw "Shared is void!";
         }
@@ -422,16 +397,16 @@ namespace ACTL {
         // Returns new instance if Shared has no reference.
         template <typename... Args>
         constexpr Type GetOr(Args&&... args) const noexcept {
-            if (data)
-                return *data;
+            if (cont)
+                return cont->data;
 
             return Type(Forward<Args>(args)...);
         }
 
         template <typename Return = void>
         constexpr Return Visit(auto&& ifData, auto&& ifVoid) const noexcept {
-            if (data)
-                return ifData(*data);
+            if (cont)
+                return ifData(cont->data);
             else
                 return ifVoid();
         }
@@ -439,7 +414,7 @@ namespace ACTL {
         // Returns count of references to current data referenced by Shared including itself.
         // Returns 0 if Shared doesn`t reference any data.
         constexpr u32 getRefCount() const noexcept {
-            return counter ? *counter : 0;
+            return cont ? cont->counter : 0;
         }
 
         constexpr Type& operator *() const {
@@ -456,12 +431,12 @@ namespace ACTL {
 
         // Compares referenced data pointers.
         constexpr bool operator ==(const Shared& other) const noexcept {
-            return data == other.data;
+            return cont == other.cont;
         }
 
         // Compares referenced data pointers.
         constexpr auto operator <=>(const Shared& other) const noexcept {
-            return data <=> other.data;
+            return cont <=> other.cont;
         }
     };
 
