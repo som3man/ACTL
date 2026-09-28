@@ -41,6 +41,21 @@ namespace ACTL {
         Type* data = nullptr;
 
     public:
+        template <typename Child> requires(!std::is_reference_v<Child> && !std::is_same_v<Void, Child>)
+        friend class Heap;
+
+        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
+        constexpr Heap<Child> DownCast() noexcept {
+            Heap<Child> result = Void();
+
+            result.data = dynamic_cast<Child*>(data);
+
+            if (result)
+                data = nullptr;
+
+            return result;
+        }
+
         // Null state initializer. Can be constinit.
         constexpr Heap(Void) noexcept {};
 
@@ -57,6 +72,12 @@ namespace ACTL {
 
         // Transfers memory ownership from other.
         constexpr Heap(Heap&& other) noexcept {
+            operator=(Move(other));
+        }
+
+        // Transfers memory ownership from other.
+        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
+        constexpr Heap(Heap<Child>&& other) noexcept {
             operator=(Move(other));
         }
 
@@ -87,6 +108,18 @@ namespace ACTL {
             Free();
 
             data = other.data;
+
+            other.data = nullptr;
+
+            return *this;
+        }
+
+        // Transfers memory ownership from other.
+        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
+        constexpr Heap& operator =(Heap<Child>&& other) noexcept(std::is_nothrow_destructible_v<Type>) {
+            Free();
+
+            data = static_cast<Type*>(other.data);
 
             other.data = nullptr;
 
