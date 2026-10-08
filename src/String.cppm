@@ -330,6 +330,10 @@ namespace ACTL {
             else
                 return Char(value);
         }
+
+        constexpr operator char32_t() const noexcept {
+            return char32_t(value);
+        }
     };
 
     export std::ostream& operator <<(std::ostream& ostream, const Symbol& symbol) noexcept {
@@ -1415,14 +1419,38 @@ namespace ACTL {
     }
 
     static_assert(StringEraseTest(), "String Erase test is FAILED!");
+}
+
+export consteval ACTL::Symbol operator ""_sym(char symbol) {
+    return ACTL::Symbol(symbol);
+}
+
+export consteval ACTL::Symbol operator ""_sym(const char* sequence, size_t) {
+    return ACTL::Symbol(sequence);
+}
+
+export consteval ACTL::String::View operator ""_str(const char* sequence, size_t) {
+    return ACTL::String::View(sequence);
+}
+
+namespace ACTL {
+    export template <typename Type>
+    constexpr String& operator <<(String& string, const Array<Type>& array) noexcept {
+        string << "["_str << array.getLength() << "/"_str << array.getCapacity() << "]{ "_str;
+
+        for (auto& i : array)
+            string << i << ", "_str;
+
+        return string << "}"_str;
+    }
 
     consteval bool StringSetAndGetTest() {
         String string = "maxwell";
 
-        if (string[0] != 'm')
+        if (string[0] != 'm'_sym)
             return false;
 
-        if (string[3] != 'w')
+        if (string[3] != 'w'_sym)
             return false;
 
         string = "Иванович";
@@ -1570,28 +1598,4 @@ namespace ACTL {
     }
 
     static_assert(StringToNumberTest(), "String to number test is FAILED!");
-}
-
-export consteval ACTL::Symbol operator ""_sym(char symbol) {
-    return ACTL::Symbol(symbol);
-}
-
-export consteval ACTL::Symbol operator ""_sym(const char* sequence, size_t) {
-    return ACTL::Symbol(sequence);
-}
-
-export consteval ACTL::String::View operator ""_str(const char* sequence, size_t) {
-    return ACTL::String::View(sequence);
-}
-
-namespace ACTL {
-    export template <typename Type>
-    constexpr String& operator <<(String& string, const Array<Type>& array) noexcept {
-        string << "["_str << array.getLength() << "/"_str << array.getCapacity() << "]{ "_str;
-
-        for (auto& i : array)
-            string << i << ", "_str;
-
-        return string << "}"_str;
-    }
 }
