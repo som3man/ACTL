@@ -145,7 +145,7 @@ namespace ACTL {
         // Allocates memory of derived type.
         // Type MUST have virtual destructor.
         template <typename Derived, typename... Args> requires(hasConstructor<Derived, Args...> && isBaseOf<Type, Derived> && hasVirtualDestructor<Type>)
-        constexpr Derived& AllocateChild(Args&&... args) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Derived, Args...>) {
+        constexpr Derived& AllocateDerived(Args&&... args) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Derived, Args...>) {
             Free();
 
             std::allocator<Derived> allocator = {};
