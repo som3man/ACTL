@@ -332,7 +332,7 @@ namespace ACTL {
 
     // Single type specialization of Option.
     // Acts as Option<Type, Void>.
-    export template <typename Type>
+    template <typename Type>
     class Option<Type> {
         using Data = Option<Type, Void>;
 
@@ -472,7 +472,7 @@ namespace ACTL {
         );
 
         return string;
-    }
+    } 
 
     consteval bool SingleOptionTest() {
         u32 counter = 0;

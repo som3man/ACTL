@@ -359,14 +359,14 @@ namespace ACTL {
     export template <typename Type>
     struct Convert {};
 
-    export template <std::integral Type>
+    template <std::integral Type>
     struct Convert<Type> {
         Type value;
 
         u8 base = 10;
     };
 
-    export template <std::floating_point Type>
+    template <std::floating_point Type>
     struct Convert<Type> {
         Type value;
 
