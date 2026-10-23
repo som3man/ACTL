@@ -15,6 +15,7 @@ target_compile_features(ACTL PUBLIC cxx_std_20)
 target_sources(ACTL PUBLIC FILE_SET CXX_MODULES FILES
     src/Main.cppm
     src/Defines.cppm
+    src/Traits.cppm
     src/Array.cppm
     src/String.cppm
     src/Option.cppm

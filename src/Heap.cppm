@@ -26,29 +26,29 @@ module;
 
 #include <memory>
 #include <ostream>
-#include <type_traits>
 
 export module ACTL:Heap;
 
 import :Defines;
+import :Traits;
 import :String;
 import :Option;
 
 namespace ACTL {
     // Unique heap memory owner.
-    export template <typename Type> requires(!std::is_reference_v<Type> && !std::is_same_v<Void, Type>)
+    export template <typename Type> requires(!isReference<Type> && !areSame<Void, Type>)
     class Heap {
         Type* data = nullptr;
 
     public:
-        template <typename Child> requires(!std::is_reference_v<Child> && !std::is_same_v<Void, Child>)
+        template <typename Other> requires(!isReference<Other> && !areSame<Void, Other>)
         friend class Heap;
 
-        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
-        constexpr Heap<Child> DownCast() noexcept {
-            Heap<Child> result = Void();
+        template <typename Derived> requires(isBaseOf<Type, Derived> && hasVirtualDestructor<Type>)
+        constexpr Heap<Derived> DownCast() noexcept {
+            Heap<Derived> result = Void();
 
-            result.data = dynamic_cast<Child*>(data);
+            result.data = dynamic_cast<Derived*>(data);
 
             if (result)
                 data = nullptr;
@@ -60,8 +60,8 @@ namespace ACTL {
         constexpr Heap(Void) noexcept {};
 
         // Allocates memory.
-        template <typename... Args>
-        constexpr Heap(Args&&... args) noexcept(std::is_nothrow_constructible_v<Type, Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Heap(Args&&... args) noexcept(hasNoexceptConstructor<Type, Args...>) {
             Allocate(Forward<Args>(args)...);
         }
 
@@ -76,18 +76,18 @@ namespace ACTL {
         }
 
         // Transfers memory ownership from other.
-        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
-        constexpr Heap(Heap<Child>&& other) noexcept {
+        template <typename Derived> requires(isBaseOf<Type, Derived> && hasVirtualDestructor<Type>)
+        constexpr Heap(Heap<Derived>&& other) noexcept {
             operator=(Move(other));
         }
 
         // Frees memory.
-        constexpr ~Heap() noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr ~Heap() noexcept(hasNoexceptDestructor<Type>) {
             Free();
         }
 
         // Copies state and data of other.
-        constexpr Heap& operator =(const Heap& other) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Type, const Heap&>) {
+        constexpr Heap& operator =(const Heap& other) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Type, const Heap&>) {
             other.Visit(
                 [&](const Type& value) {
                     if (data)
@@ -104,7 +104,7 @@ namespace ACTL {
         }
 
         // Transfers memory ownership from other.
-        constexpr Heap& operator =(Heap&& other) noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr Heap& operator =(Heap&& other) noexcept(hasNoexceptDestructor<Type>) {
             Free();
 
             data = other.data;
@@ -115,8 +115,8 @@ namespace ACTL {
         }
 
         // Transfers memory ownership from other.
-        template <typename Child> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
-        constexpr Heap& operator =(Heap<Child>&& other) noexcept(std::is_nothrow_destructible_v<Type>) {
+        template <typename Derived> requires(isBaseOf<Type, Derived> && hasVirtualDestructor<Type>)
+        constexpr Heap& operator =(Heap<Derived>&& other) noexcept(hasNoexceptDestructor<Type>) {
             Free();
 
             data = static_cast<Type*>(other.data);
@@ -127,8 +127,8 @@ namespace ACTL {
         }
 
         // Allocates memory.
-        template <typename... Args>
-        constexpr Type& Allocate(Args&&... args) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Type, Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type& Allocate(Args&&... args) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Type, Args...>) {
             if (data)
                 data->~Type();
             else {
@@ -144,11 +144,11 @@ namespace ACTL {
 
         // Allocates memory of derived type.
         // Type MUST have virtual destructor.
-        template <typename Child, typename... Args> requires(std::is_base_of_v<Type, Child> && std::has_virtual_destructor_v<Type>)
-        constexpr Child& AllocateChild(Args&&... args) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Child, Args...>) {
+        template <typename Derived, typename... Args> requires(hasConstructor<Derived, Args...> && isBaseOf<Type, Derived> && hasVirtualDestructor<Type>)
+        constexpr Derived& AllocateChild(Args&&... args) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Derived, Args...>) {
             Free();
 
-            std::allocator<Child> allocator = {};
+            std::allocator<Derived> allocator = {};
 
             auto p = allocator.allocate(1);
 
@@ -160,7 +160,7 @@ namespace ACTL {
         }
 
         // Frees memory.
-        constexpr void Free() noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr void Free() noexcept(hasNoexceptDestructor<Type>) {
             if (data) {
                 data->~Type();
 
@@ -184,18 +184,18 @@ namespace ACTL {
             return notVoid();
         }
 
-        template <typename Return = void> 
-        constexpr Return Visit(auto&& ifData, auto&& ifVoid) noexcept {
+        template <typename Return = void, typename IfData, typename IfVoid> requires(isInvocable<Return, IfData, Type&> && isInvocable<Return, IfVoid>)
+        constexpr Return Visit(IfData&& ifData, IfVoid&& ifVoid) noexcept(isNoexceptInvocable<Return, IfData, Type&> && isNoexceptInvocable<Return, IfVoid>) {
             if (data)
-                return ifData(*(static_cast<const Type*>(data)));
+                return ifData(*data);
             else
                 return ifVoid();
         }
 
-        template <typename Return = void> 
-        constexpr Return Visit(auto&& ifData, auto&& ifVoid) const noexcept {
+        template <typename Return = void, typename IfData, typename IfVoid> requires(isInvocable<Return, IfData, const Type&> && isInvocable<Return, IfVoid>)
+        constexpr Return Visit(IfData&& ifData, IfVoid&& ifVoid) const noexcept(isNoexceptInvocable<Return, IfData, const Type&> && isNoexceptInvocable<Return, IfVoid>) {
             if (data)
-                return ifData(*data);
+                return ifData(*(static_cast<const Type*>(data)));
             else
                 return ifVoid();
         }
@@ -217,8 +217,8 @@ namespace ACTL {
         }
 
         // Returns new instance if heap is void.
-        template <typename... Args>
-        constexpr Type GetOr(Args&&... args) const noexcept(std::is_nothrow_constructible_v<Type, const Type&> && std::is_nothrow_constructible_v<Type, Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, const Type&> && hasNoexceptConstructor<Type, Args...>) {
             if (data)
                 return *data;
 
@@ -315,7 +315,7 @@ namespace ACTL {
     }
 
     // Shared heap memory reference.
-    export template <typename Type> requires(!std::is_reference_v<Type> && !std::is_same_v<Void, Type>)
+    export template <typename Type> requires(!isReference<Type> && !areSame<Void, Type>)
     class Shared {
         struct Cont {
             Type data;
@@ -323,11 +323,11 @@ namespace ACTL {
             u32 counter;
 
             template <typename... Args>
-            constexpr Cont(Args&&... args) noexcept(std::is_nothrow_constructible_v<Type, Args...>) : data(Forward<Args>(args)...) {
+            constexpr Cont(Args&&... args) noexcept(hasNoexceptConstructor<Type, Args...>) : data(Forward<Args>(args)...) {
                 counter = 1;
             }
 
-            constexpr ~Cont() noexcept(std::is_nothrow_destructible_v<Type>) {};
+            constexpr ~Cont() noexcept(hasNoexceptDestructor<Type>) {};
         };
         
         Cont* cont = nullptr;
@@ -352,7 +352,7 @@ namespace ACTL {
         }
 
         // Copies referencing state.
-        constexpr Shared& operator =(const Shared& other) noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr Shared& operator =(const Shared& other) noexcept(hasNoexceptDestructor<Type>) {
             Drop();
 
             cont = other.cont;
@@ -364,7 +364,7 @@ namespace ACTL {
         }
 
         // Transfers referencing state.
-        constexpr Shared& operator =(Shared&& other) noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr Shared& operator =(Shared&& other) noexcept(hasNoexceptDestructor<Type>) {
             Drop();
 
             cont = other.cont;
@@ -375,8 +375,8 @@ namespace ACTL {
         }
 
         // Allocates new data. Shared will reference to it.
-        template <typename... Args>
-        constexpr Type& Allocate(Args&&... args) noexcept(std::is_nothrow_destructible_v<Type> && std::is_nothrow_constructible_v<Type, Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type& Allocate(Args&&... args) noexcept(hasNoexceptDestructor<Type> && hasNoexceptConstructor<Type, Args...>) {
             Drop();
 
             std::allocator<Cont> alloc = {};
@@ -389,7 +389,7 @@ namespace ACTL {
         }
 
         // Drops referencing. Referencing data is deleted if it has no references.
-        constexpr void Drop() noexcept(std::is_nothrow_destructible_v<Type>) {
+        constexpr void Drop() noexcept(hasNoexceptDestructor<Type>) {
             if (!cont)
                 return;
 
@@ -428,16 +428,16 @@ namespace ACTL {
         }
 
         // Returns new instance if Shared has no reference.
-        template <typename... Args>
-        constexpr Type GetOr(Args&&... args) const noexcept {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, const Type&> && hasNoexceptConstructor<Type, Args...>) {
             if (cont)
                 return cont->data;
 
             return Type(Forward<Args>(args)...);
         }
 
-        template <typename Return = void>
-        constexpr Return Visit(auto&& ifData, auto&& ifVoid) const noexcept {
+        template <typename Return = void, typename IfData, typename IfVoid> requires(isInvocable<Return, IfData, Type&> && isInvocable<Return, IfVoid>)
+        constexpr Return Visit(IfData&& ifData, IfVoid&& ifVoid) const noexcept(hasNoexceptConstructor<Return, IfData, Type&> && hasNoexceptConstructor<Return, IfVoid>) {
             if (cont)
                 return ifData(cont->data);
             else

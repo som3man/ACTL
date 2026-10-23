@@ -25,6 +25,7 @@ SOFTWARE.
 export module ACTL;
 
 export import :Defines;
+export import :Traits;
 export import :Array;
 export import :String;
 export import :Option;

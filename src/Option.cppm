@@ -31,9 +31,10 @@ export module ACTL:Option;
 
 import :Defines;
 import :String;
+import :Traits;
 
 namespace ACTL {
-    template <u32 index, typename Type, typename... Other>
+    template <u32 index, typename Type, typename... Other> requires(!isReference<Type>)
     union OptionLeaf {
         Type data;
 
@@ -74,7 +75,7 @@ namespace ACTL {
         }
 
         template <typename Return, typename Func, typename... Funcs>
-        constexpr Return Visit(u8 targetIndex, Func&& func, Funcs&&... funcs) noexcept {
+        constexpr Return Visit(u8 targetIndex, Func&& func, Funcs&&... funcs) {
             if (targetIndex == index)
                 return func(data);
             else
@@ -82,7 +83,7 @@ namespace ACTL {
         }
 
         template <typename Return, typename Func, typename... Funcs>
-        constexpr Return Visit(u8 targetIndex, Func&& func, Funcs&&... funcs) const noexcept {
+        constexpr Return Visit(u8 targetIndex, Func&& func, Funcs&&... funcs) const {
             if (targetIndex == index)
                 return func(data);
             else
@@ -106,7 +107,7 @@ namespace ACTL {
         }
     };
 
-    template <u32 index, typename Type>
+    template <u32 index, typename Type> requires(!isReference<Type>)
     union OptionLeaf<index, Type> {
         Type data;
 
@@ -137,12 +138,12 @@ namespace ACTL {
         }
 
         template <typename Return, typename Func>
-        constexpr Return Visit(u8 targetIndex, Func&& func) noexcept {
+        constexpr Return Visit(u8 targetIndex, Func&& func) {
             return func(data);
         }
 
         template <typename Return, typename Func>
-        constexpr Return Visit(u8 targetIndex, Func&& func) const noexcept {
+        constexpr Return Visit(u8 targetIndex, Func&& func) const {
             return func(data);
         }
 
@@ -202,7 +203,7 @@ namespace ACTL {
         }
 
         template <typename Type> requires(Has<Type>())
-        constexpr Option(Type&& value) noexcept(std::is_nothrow_constructible_v<std::remove_cvref_t<Type>, Type&&>) : leaf(Forward(value)) {
+        constexpr Option(Type&& value) noexcept(hasNoexceptConstructor<std::remove_cvref_t<Type>, Type&&>) : leaf(Forward(value)) {
             typeIndex = GetIndex<std::remove_cvref_t<Type>>();
         }
 
@@ -251,7 +252,7 @@ namespace ACTL {
         }
 
         template <typename Type, typename... Args> requires(Has<Type>())
-        constexpr Type& Set(Args&&... args) noexcept(NoThrowDestructible() && std::is_nothrow_constructible_v<Type, Args...>) {
+        constexpr Type& Set(Args&&... args) noexcept(NoThrowDestructible() && hasNoexceptConstructor<Type, Args...>) {
             Destruct();
 
             leaf.~Leaf();
@@ -279,8 +280,8 @@ namespace ACTL {
             throw "Type is not initialized!";
         }
 
-        template <typename Type, typename... Args> requires(Has<Type>() && std::is_constructible_v<Type, const Type&>)
-        constexpr Type GetOr(Args&&... args) const noexcept(std::is_nothrow_constructible_v<Type, Args...> && std::is_nothrow_constructible_v<Type, const Type&>) {
+        template <typename Type, typename... Args> requires(Has<Type>() && hasConstructor<Type, const Type&>)
+        constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, Args...> && hasNoexceptConstructor<Type, const Type&>) {
             if (is<Type>())
                 return leaf.template Get<Type>();
 
@@ -293,12 +294,12 @@ namespace ACTL {
         }
 
         template <typename Return = void, typename... Funcs> requires(sizeof...(Funcs) == sizeof...(Types))
-        constexpr Return Visit(Funcs&&... funcs) noexcept {
+        constexpr Return Visit(Funcs&&... funcs) {
             return leaf.template Visit<Return>(typeIndex, Forward<Funcs>(funcs)...);
         }
 
         template <typename Return = void, typename... Funcs> requires(sizeof...(Funcs) == sizeof...(Types))
-        constexpr Return Visit(Funcs&&... funcs) const noexcept {
+        constexpr Return Visit(Funcs&&... funcs) const {
             return leaf.template Visit<Return>(typeIndex, Forward<Funcs>(funcs)...);
         }
     };
@@ -341,22 +342,22 @@ namespace ACTL {
     public:
         constexpr Option(Void) noexcept : data(Void()) {};
 
-        template <typename... Args> requires(std::is_constructible_v<Type, Args...>)
-        constexpr Option(Args&&... args) noexcept(std::is_nothrow_constructible_v<Type, Args...>) : data(Type(Forward(args)...)) {};
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Option(Args&&... args) noexcept(hasNoexceptConstructor<Type, Args...>) : data(Type(Forward(args)...)) {};
 
-        constexpr Option(const Option& other) noexcept(std::is_nothrow_constructible_v<Data, const Data&>) : data(other.data) {};
+        constexpr Option(const Option& other) noexcept(hasNoexceptConstructor<Data, const Data&>) : data(other.data) {};
 
-        constexpr Option(Option&& other) noexcept(std::is_nothrow_constructible_v<Data, Data&&>) : data(Move(other.data)) {};
+        constexpr Option(Option&& other) noexcept(hasNoexceptConstructor<Data, Data&&>) : data(Move(other.data)) {};
 
         constexpr ~Option() noexcept {};
 
-        constexpr Option& operator =(const Option& other) noexcept(std::is_nothrow_assignable_v<Data, const Data&>) {
+        constexpr Option& operator =(const Option& other) noexcept(hasNoexceptConstructor<Data, const Data&>) {
             data = other.data;
 
             return *this;
         }
 
-        constexpr Option& operator =(Option&& other) noexcept(std::is_nothrow_assignable_v<Data, Data&&>) {
+        constexpr Option& operator =(Option&& other) noexcept(hasNoexceptConstructor<Data, Data&&>) {
             data = Move(other.data);
 
             return *this;
@@ -382,13 +383,13 @@ namespace ACTL {
             return data.template Get<Type>();
         }
 
-        template <typename... Args> requires(std::is_constructible_v<Type, const Type&>)
-        constexpr Type GetOr(Args&&... args) const noexcept(std::is_nothrow_constructible_v<Type, Args...> && std::is_nothrow_constructible_v<Type, const Type&>) {
+        template <typename... Args> requires(hasConstructor<Type, const Type&>)
+        constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, Args...> && hasNoexceptConstructor<Type, const Type&>) {
             return data.template GetOr<Type>(Forward<Args>(args)...);
         }
 
         template <typename Return = void>
-        constexpr Return Visit(auto&& ifData, auto&& ifVoid) noexcept {
+        constexpr Return Visit(auto&& ifData, auto&& ifVoid) {
             return data.template Visit<Return>(
                 Forward(ifData),
                 [&](const Void&) {
@@ -398,7 +399,7 @@ namespace ACTL {
         }
 
         template <typename Return = void>
-        constexpr Return Visit(auto&& ifData, auto&& ifVoid) const noexcept {
+        constexpr Return Visit(auto&& ifData, auto&& ifVoid) const {
             return data.template Visit<Return>(
                 Forward(ifData),
                 [&](const Void&) {

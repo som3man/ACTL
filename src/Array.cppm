@@ -26,12 +26,12 @@ module;
 
 #include <initializer_list>
 #include <memory>
-#include <type_traits>
 #include <ostream>
 
 export module ACTL:Array;
 
 import :Defines;
+import :Traits;
 
 namespace ACTL {
     // A result of a search in array.
@@ -45,14 +45,14 @@ namespace ACTL {
     };
 
     // Resizable heap buffer.
-    export template <typename Type> requires(!std::is_reference_v<Type>)
+    export template <typename Type> requires(!isReference<Type>)
     class Array {
         template <typename... Args>
-        static constexpr bool noThrowConstructor = std::is_nothrow_constructible_v<Type, Args...>;
+        static constexpr bool noexceptConstructor = hasNoexceptConstructor<Type, Args...>;
 
-        static constexpr bool noThrowDestructor = std::is_nothrow_destructible_v<Type>;
+        static constexpr bool noexceptDestructor = hasNoexceptDestructor<Type>;
 
-        static constexpr bool trivialDestructor = std::is_trivially_destructible_v<Type>;
+        static constexpr bool trivialDestructor = hasTrivialDestructor<Type>;
 
         Type* data = nullptr;
 
@@ -60,7 +60,7 @@ namespace ACTL {
 
         u32 capacity = 0;
 
-        constexpr void ShiftRight(u32 index, u32 amount) noexcept(noThrowDestructor && noThrowConstructor<Type&&>) {
+        constexpr void ShiftRight(u32 index, u32 amount) noexcept(noexceptDestructor && noexceptConstructor<Type&&>) {
             for (auto i = length; i > index; i--) {
                 auto& s = data[i - 1];
 
@@ -70,7 +70,7 @@ namespace ACTL {
             }
         }
 
-        constexpr void ShiftLeft(u32 index, u32 amount) noexcept(noThrowDestructor && noThrowConstructor<Type&&>) {
+        constexpr void ShiftLeft(u32 index, u32 amount) noexcept(noexceptDestructor && noexceptConstructor<Type&&>) {
             for (auto i = index; i < length; i++) {
                 auto& s = data[i];
 
@@ -90,7 +90,7 @@ namespace ACTL {
         }
 
         // Copies data.
-        constexpr Array(const std::initializer_list<Type>& list) noexcept(noThrowConstructor<const Type&>) {
+        constexpr Array(const std::initializer_list<Type>& list) noexcept(noexceptConstructor<const Type&>) {
             Allocate(list.size());
 
             length = list.size();
@@ -101,7 +101,7 @@ namespace ACTL {
 
         // Constructs elements of given count.
         template <typename... Args>
-        constexpr Array(u32 count, Args&&... args) noexcept(noThrowConstructor<Args...>) {
+        constexpr Array(u32 count, Args&&... args) noexcept(noexceptConstructor<Args...>) {
             Allocate(count);
 
             length = count;
@@ -111,7 +111,7 @@ namespace ACTL {
         }
 
         // Copies every element of other.
-        constexpr Array(const Array& other) noexcept(noThrowConstructor<const Type&>) {
+        constexpr Array(const Array& other) noexcept(noexceptConstructor<const Type&>) {
             operator=(other);
         }
 
@@ -121,13 +121,13 @@ namespace ACTL {
         }
 
         // Destructs and deallocates all data.
-        constexpr ~Array() noexcept(noThrowDestructor) {
+        constexpr ~Array() noexcept(noexceptDestructor) {
             Free();
         }
 
         // Copies every element of other.
         // May expand memory up to other`s.
-        constexpr Array& operator =(const Array& other) noexcept(noThrowDestructor && noThrowConstructor<const Type&>) {
+        constexpr Array& operator =(const Array& other) noexcept(noexceptDestructor && noexceptConstructor<const Type&>) {
             if (this == &other)
                 return *this;
 
@@ -145,7 +145,7 @@ namespace ACTL {
         }
 
         // Sets other`s memory and leaves other in null state.
-        constexpr Array& operator =(Array&& other) noexcept(noThrowDestructor) {
+        constexpr Array& operator =(Array&& other) noexcept(noexceptDestructor) {
             if (this == &other)
                 return *this;
 
@@ -162,7 +162,7 @@ namespace ACTL {
 
         // Allocates new memory.
         // Frees previous memory.
-        constexpr void Allocate(u32 capacity) noexcept(noThrowDestructor) {
+        constexpr void Allocate(u32 capacity) noexcept(noexceptDestructor) {
             Free();
 
             this->capacity = capacity;
@@ -173,7 +173,7 @@ namespace ACTL {
         }
 
         // Doubles capacity of array or allocates 8 elements if array is empty.
-        constexpr void Expand() noexcept(noThrowDestructor && noThrowConstructor<Type&&>) {
+        constexpr void Expand() noexcept(noexceptDestructor && noexceptConstructor<Type&&>) {
             if (capacity)
                 Expand(capacity);
             else
@@ -181,7 +181,7 @@ namespace ACTL {
         }
 
         // Increases capacity of array.
-        constexpr void Expand(u32 count) noexcept(noThrowDestructor && noThrowConstructor<Type&&>) {
+        constexpr void Expand(u32 count) noexcept(noexceptDestructor && noexceptConstructor<Type&&>) {
             if (!count)
                 return;
 
@@ -209,7 +209,7 @@ namespace ACTL {
         }
 
         // Shrinks capacity up to length.
-        constexpr void ShrinkToFit() noexcept(noThrowDestructor && noThrowConstructor<Type&&>) {
+        constexpr void ShrinkToFit() noexcept(noexceptDestructor && noexceptConstructor<Type&&>) {
             if (length == capacity)
                 return;
 
@@ -232,7 +232,7 @@ namespace ACTL {
         }
 
         // Destructs and deallocates memory.
-        constexpr void Free() noexcept(noThrowDestructor) {
+        constexpr void Free() noexcept(noexceptDestructor) {
             Clear();
 
             if (data) {
@@ -250,8 +250,8 @@ namespace ACTL {
         // If index < length, emplaces element before element with this index.
         // If index == length, emplaces element after the last one.
         // If index > length, emplaces element at index and constructs elements between emplaced and back.
-        template <typename... Args>
-        constexpr Type& EmplaceStrict(u32 index, Args&&... args) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type& EmplaceStrict(u32 index, Args&&... args) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<Args...>) {
             if (index < length) {
                 if (isFull())
                     Expand();
@@ -279,7 +279,7 @@ namespace ACTL {
 
         // Destructs element in array saving its order.
         // Does nothing if index >= length.
-        constexpr void EraseStrict(u32 index) noexcept(noThrowConstructor<Type&&> && noThrowDestructor) {
+        constexpr void EraseStrict(u32 index) noexcept(noexceptConstructor<Type&&> && noexceptDestructor) {
             if (index >= length)
                 return;
             else if (index == length - 1)
@@ -294,26 +294,26 @@ namespace ACTL {
         }
 
         // Emplaces element at the back.
-        template <typename... Args>
-        constexpr Type& EmplaceBack(Args&&... args) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type& EmplaceBack(Args&&... args) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<Args...>) {
             return EmplaceStrict(length, Forward<Args>(args)...);
         }
 
         // Emplaces many elements at the back.
-        template <typename... Args>
-        constexpr void EmplaceBackMany(u32 count, Args&&... args) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr void EmplaceBackMany(u32 count, Args&&... args) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<Args...>) {
             if (count)
                 EmplaceStrict(length + count - 1, Forward<Args>(args)...);
         }
 
         // Erases element at the back.
         // Does nothing if array is empty.
-        constexpr void EraseBack() noexcept(noThrowDestructor) {
+        constexpr void EraseBack() noexcept(noexceptDestructor) {
             EraseStrict(length - 1);
         }
 
-        template <typename... Args>
-        constexpr Type& EmplaceSorted(Args&&... args) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr Type& EmplaceSorted(Args&&... args) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<Args...>) {
             Type value(Forward<Args>(args)...);
 
             auto sr = Find(value);
@@ -321,7 +321,7 @@ namespace ACTL {
             return EmplaceStrict(sr.index, Move(value));
         }
 
-        constexpr void EraseSorted(const Type& value) noexcept(noThrowConstructor<Type&&> && noThrowDestructor) {
+        constexpr void EraseSorted(const Type& value) noexcept(noexceptConstructor<Type&&> && noexceptDestructor) {
             auto sr = Find(value);
 
             if (sr.success)
@@ -330,8 +330,8 @@ namespace ACTL {
 
         // Inserts new elements.
         // If index >= length, emplaces them at the back.
-        template <typename... Args>
-        constexpr void Insert(u32 index, u32 count, Args&&... args) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<Args...>) {
+        template <typename... Args> requires(hasConstructor<Type, Args...>)
+        constexpr void Insert(u32 index, u32 count, Args&&... args) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<Args...>) {
             if (!count)
                 return;
 
@@ -356,7 +356,7 @@ namespace ACTL {
 
         // Inserts new elements from other array.
         // If index >= length, emplaces them at the back.
-        constexpr void Insert(u32 index, const Array<Type>& other) noexcept(noThrowConstructor<Type&&> && noThrowDestructor && noThrowConstructor<const Type&>) {
+        constexpr void Insert(u32 index, const Array<Type>& other) noexcept(noexceptConstructor<Type&&> && noexceptDestructor && noexceptConstructor<const Type&>) {
             if (!other)
                 return;
 
@@ -381,7 +381,7 @@ namespace ACTL {
 
         // Inserts new elements from other array.
         // If index >= length, emplaces them at the back.
-        constexpr void Insert(u32 index, Array<Type>&& other) noexcept(noThrowConstructor<Type&&> && noThrowDestructor) {
+        constexpr void Insert(u32 index, Array<Type>&& other) noexcept(noexceptConstructor<Type&&> && noexceptDestructor) {
             if (!other)
                 return;
 
@@ -407,7 +407,7 @@ namespace ACTL {
         // Destructs elements in array saving its order.
         // Does nothing if index >= length.
         // It is safe to set incorrect count of elements.
-        constexpr void EraseStrict(u32 index, u32 count) noexcept(noThrowConstructor<Type&&> && noThrowDestructor) {
+        constexpr void EraseStrict(u32 index, u32 count) noexcept(noexceptConstructor<Type&&> && noexceptDestructor) {
             if (!count || index >= length)
                 return;
 
@@ -428,7 +428,7 @@ namespace ACTL {
         }
 
         // Destructs all elements.
-        constexpr void Clear() noexcept(noThrowDestructor) {
+        constexpr void Clear() noexcept(noexceptDestructor) {
             if constexpr (trivialDestructor) {
                 length = 0;
 
