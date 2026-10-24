@@ -30,7 +30,6 @@ module;
 export module ACTL:Option;
 
 import :Defines;
-import :String;
 import :Traits;
 
 namespace ACTL {
@@ -169,9 +168,29 @@ namespace ACTL {
         return ostream << L"void";
     }
 
-    export constexpr String& operator <<(String& string, Void) noexcept {
-        return string << "void"_str;
-    }
+    export class AccessError {
+    public:
+        enum class Cause {
+            TYPE_MISMATCH,
+            UNINITIALIZED
+        };
+
+        const char* const message;
+
+        const Cause cause;
+
+        consteval AccessError(Cause cause, const char* message) noexcept : message(message), cause(cause) {};
+
+        constexpr AccessError(const AccessError&) noexcept = default;
+
+        constexpr AccessError(AccessError&&) noexcept = default;
+
+        constexpr ~AccessError() noexcept = default;
+
+        constexpr AccessError& operator =(const AccessError&) = delete;
+
+        constexpr AccessError& operator =(AccessError&&) = delete;
+    };
 
     // Type safe union implementation.
     export template <typename... Types>
@@ -269,7 +288,7 @@ namespace ACTL {
             if (is<Type>())
                 return leaf.template Get<Type>();
 
-            throw "Type is not initialized!";
+            throw AccessError(AccessError::Cause::TYPE_MISMATCH, "Option type mismatch!");
         }
 
         template <typename Type> requires(Has<Type>())
@@ -277,7 +296,7 @@ namespace ACTL {
             if (is<Type>())
                 return leaf.template Get<Type>();
 
-            throw "Type is not initialized!";
+            throw AccessError(AccessError::Cause::TYPE_MISMATCH, "Option type mismatch!");
         }
 
         template <typename Type, typename... Args> requires(Has<Type>() && hasConstructor<Type, const Type&>)
@@ -288,9 +307,44 @@ namespace ACTL {
             return Type(Forward<Args>(args)...);
         }
 
-        template <typename Type> requires(Has<Type>())
+        template <typename Type, typename Func> requires(isInvocable<void, Func, Type&>)
+        constexpr Option& IfIs(Func&& func) noexcept(isNoexceptInvocable<void, Func, Type&>) {
+            if (is<Type>())
+                func(Get<Type>());
+
+            return *this;
+        }
+
+        template <typename Type, typename Func> requires(isInvocable<void, Func, const Type&>)
+        constexpr const Option& IfIs(Func&& func) const noexcept(isNoexceptInvocable<void, Func, const Type&>) {
+            if (is<Type>())
+                func(Get<Type>());
+
+            return *this;
+        }
+
+        template <typename Type, typename Func> requires(isInvocable<void, Func>)
+        constexpr Option& IfNot(Func&& func) noexcept(isNoexceptInvocable<void, Func>) {
+            if (!is<Type>())
+                func();
+
+            return *this;
+        }
+
+        template <typename Type, typename Func> requires(isInvocable<void, Func>)
+        constexpr const Option& IfNot(Func&& func) const noexcept(isNoexceptInvocable<void, Func>) {
+            if (!is<Type>())
+                func();
+
+            return *this;
+        }
+
+        template <typename Type>
         constexpr bool is() const noexcept {
-            return GetIndex<Type>() == typeIndex;
+            if constexpr (!Has<Type>())
+                return false;
+            else
+                return GetIndex<Type>() == typeIndex;
         }
 
         template <typename Return = void, typename... Funcs> requires(sizeof...(Funcs) == sizeof...(Types))
@@ -304,36 +358,20 @@ namespace ACTL {
         }
     };
 
-    export template <typename... Types>
-    std::ostream& operator <<(std::ostream& ostream, const Option<Types...>& option) noexcept {
-        option.Visit([&](const Types& value) {
-            ostream << value;
-        }...);
+    export template <typename Char, typename... Types>
+    std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Option<Types...>& option) noexcept {
+        option.Visit(
+            [&](const Types& value) {
+                ostream << value;
+            }...
+        );
 
         return ostream;
-    }
-
-    export template <typename... Types>
-    std::wostream& operator <<(std::wostream& ostream, const Option<Types...>& option) noexcept {
-        option.Visit([&](const Types& value) {
-            ostream << value;
-        }...);
-
-        return ostream;
-    }
-
-    export template <typename... Types>
-    constexpr String& operator <<(String& string, const Option<Types...>& option) noexcept {
-        option.Visit([&](const Types& value) {
-            string << value;
-        }...);
-
-        return string;
     }
 
     // Single type specialization of Option.
     // Acts as Option<Type, Void>.
-    template <typename Type>
+    template <typename Type> requires(!areSame<Type, Void>)
     class Option<Type> {
         using Data = Option<Type, Void>;
 
@@ -376,16 +414,86 @@ namespace ACTL {
         }
 
         constexpr Type& Get() {
-            return data.template Get<Type>();
+            if (data.template is<Type>())
+                return data.template Get<Type>();
+
+            throw AccessError(AccessError::Cause::UNINITIALIZED, "Option is not initialized!");
         }
 
         constexpr const Type& Get() const {
-            return data.template Get<Type>();
+            if (data.template is<Type>())
+                return data.template Get<Type>();
+
+            throw AccessError(AccessError::Cause::UNINITIALIZED, "Option is not initialized!");
         }
 
-        template <typename... Args> requires(hasConstructor<Type, const Type&>)
+        template <typename... Args> requires(hasConstructor<Type, Args...> && hasConstructor<Type, const Type&>)
         constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, Args...> && hasNoexceptConstructor<Type, const Type&>) {
             return data.template GetOr<Type>(Forward<Args>(args)...);
+        }
+
+        template <typename Func> requires(isInvocableAny<Func, Type&>)
+        constexpr auto Transform(Func&& func) noexcept(isNoexceptInvocableAny<Func, Type&>) {
+            using Return = ReturnType<Func, Type&>;
+
+            return Visit<Option<Return>>(
+                [&](Type& value) {
+                    return Option<Return>(func(value));
+                },
+                [&]() {
+                    return Option<Return>(Void());
+                }
+            );
+        }
+
+        template <typename Func> requires(isInvocableAny<Func, const Type&>)
+        constexpr auto Transform(Func&& func) const noexcept(isNoexceptInvocableAny<Func, const Type&>) {
+            using Return = ReturnType<Func, const Type&>;
+
+            return Visit<Option<Return>>(
+                [&](const Type& value) {
+                    return Option<Return>(func(value));
+                },
+                [&]() {
+                    return Option<Return>(Void());
+                }
+            );
+        }
+
+        template <typename Func> requires(isInvocable<void, Func, Type&>)
+        constexpr Option& IfData(Func&& func) noexcept(isNoexceptInvocable<void, Func, Type&>) {
+            Visit(
+                [&](Type& value) {
+                    func(value);
+                },
+                [&]() {}
+            );
+
+            return *this;
+        }
+
+        template <typename Func> requires(isInvocable<void, Func, const Type&>)
+        constexpr const Option& IfData(Func&& func) const noexcept(isNoexceptInvocable<void, Func, const Type&>) {
+            Visit(
+                [&](const Type& value) {
+                    func(value);
+                },
+                [&]() {}
+            );
+
+            return *this;
+        }
+
+        template <typename Func> requires(isInvocable<void, Func>)
+        constexpr const Option& IfVoid(Func&& func) const noexcept(isNoexceptInvocable<void, Func>) {
+            Visit(
+                [&](const Type& value) {},
+                [&]() {
+                    func();
+                }
+            );
+
+            return *this;
         }
 
         template <typename Return = void>
@@ -433,8 +541,8 @@ namespace ACTL {
         }
     };
 
-    export template <typename Type>
-    std::ostream& operator <<(std::ostream& ostream, const Option<Type>& option) noexcept {
+    export template <typename Type, typename Char>
+    std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Option<Type>& option) noexcept {
         option.Visit(
             [&](const Type& value) {
                 ostream << value;
@@ -447,8 +555,147 @@ namespace ACTL {
         return ostream;
     }
 
+    template <typename Type> requires(!areSame<Type, Void>)
+    class Option<Type&> {
+        Type* pointer = nullptr;
+
+    public:
+        constexpr Option() noexcept {};
+
+        constexpr Option(Void) noexcept {};
+
+        constexpr Option(Type& value) noexcept : pointer(&value) {};
+
+        constexpr Option(const Option&) noexcept = default;
+
+        constexpr Option(Option&& other) noexcept : pointer(other.pointer) {
+            other.pointer = nullptr;
+        }
+
+        constexpr ~Option() noexcept = default;
+
+        constexpr Option& operator =(const Option&) noexcept = default;
+
+        constexpr Option& operator =(Option&& other) noexcept {
+            pointer = other.pointer;
+
+            other.pointer = nullptr;
+
+            return *this;
+        }
+
+        constexpr bool notVoid() const noexcept {
+            return pointer;
+        }
+
+        constexpr bool isVoid() const noexcept {
+            return !pointer;
+        }
+
+        constexpr operator bool() const noexcept {
+            return notVoid();
+        }
+
+        constexpr Type& Get() {
+            if (pointer)
+                return *pointer;
+
+            throw AccessError(AccessError::Cause::UNINITIALIZED, "Option is not initialized!");
+        }
+
+        constexpr const Type& Get() const {
+            if (pointer)
+                return *pointer;
+
+            throw AccessError(AccessError::Cause::UNINITIALIZED, "Option is not initialized!");
+        }
+
+        template <typename... Args> requires(hasConstructor<Type, Args...> && hasConstructor<Type, const Type&>)
+        constexpr Type GetOr(Args&&... args) const noexcept(hasNoexceptConstructor<Type, Args...> && hasNoexceptConstructor<Type, const Type&>) {
+            if (pointer)
+                return *pointer;
+
+            return Type(Forward<Args>(args)...);
+        }
+
+        template <typename Func> requires(isInvocable<void, Func, Type&>)
+        constexpr Option& IfData(Func&& func) noexcept(isNoexceptInvocable<void, Func, Type&>) {
+            if (pointer)
+                func(*pointer);
+
+            return *this;
+        }
+
+        template <typename Func> requires(isInvocable<void, Func, const Type&>)
+        constexpr const Option& IfData(Func&& func) const noexcept(isNoexceptInvocable<void, Func, const Type&>) {
+            if (pointer)
+                func(*pointer);
+
+            return *this;
+        }
+
+        template <typename Func> requires(isInvocable<void, Func>)
+        constexpr Option& IfVoid(Func&& func) noexcept(isNoexceptInvocable<void, Func>) {
+            if (!pointer)
+                func();
+
+            return *this;
+        }
+
+        template <typename Func> requires(isInvocable<void, Func>)
+        constexpr const Option& IfVoid(Func&& func) const noexcept(isNoexceptInvocable<void, Func>) {
+            if (!pointer)
+                func();
+
+            return *this;
+        }
+
+        template <typename Return = void>
+        constexpr Return Visit(auto&& ifData, auto&& ifVoid) {
+            if (pointer)
+                return ifData(*pointer);
+            else
+                return ifVoid();
+        }
+
+        template <typename Return = void>
+        constexpr Return Visit(auto&& ifData, auto&& ifVoid) const {
+            if (pointer)
+                return ifData(*static_cast<const Type*>(pointer));
+            else
+                return ifVoid();
+        }
+
+        constexpr Type& operator *() {
+            return Get();
+        }
+
+        constexpr const Type& operator *() const {
+            return Get();
+        }
+
+        constexpr Type* operator ->() {
+            return &Get();
+        }
+
+        constexpr const Type* operator ->() const {
+            return &Get();
+        }
+
+        constexpr operator Type& () {
+            return Get();
+        }
+
+        constexpr operator const Type& () const {
+            return Get();
+        }
+    };
+
     export template <typename Type>
-    std::wostream& operator <<(std::wostream& ostream, const Option<Type>& option) noexcept {
+    using Pointer = Option<Type&>;
+
+    export template <typename Char, typename Type>
+    std::basic_ostream<Char>& operator <<(std::basic_ostream<Char>& ostream, const Option<Type&>& option) noexcept {
         option.Visit(
             [&](const Type& value) {
                 ostream << value;
@@ -461,19 +708,40 @@ namespace ACTL {
         return ostream;
     }
 
-    export template <typename Type>
-    constexpr String& operator <<(String& string, const Option<Type>& option) noexcept {
-        option.Visit(
-            [&](const Type& value) {
-                string << value;
-            },
-            [&]() {
-                string << Void();
-            }
-        );
+    class Class {
+    public:
+        i32 data;
+        
+        u32* counter;
 
-        return string;
-    } 
+        constexpr Class(i32 value, u32& counter) noexcept : data(value), counter(&counter) {
+            counter += 1;
+        }
+
+        constexpr Class(const Class& other) noexcept : data(other.data), counter(other.counter) {
+            (*counter) += 1;
+        }
+
+        constexpr Class(Class&& other) noexcept : data(other.data), counter(other.counter) {
+            (*counter) += 1;
+        }
+
+        constexpr ~Class() noexcept {
+            (*counter) -= 1;
+        }
+
+        constexpr Class& operator =(const Class& other) noexcept {
+            data = other.data;
+
+            return *this;
+        }
+
+        constexpr Class& operator =(Class&& other) noexcept {
+            data = other.data;
+
+            return *this;
+        }
+    };
 
     consteval bool SingleOptionTest() {
         u32 counter = 0;

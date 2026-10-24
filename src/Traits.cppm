@@ -22,8 +22,17 @@ namespace ACTL {
     export template <typename Return, typename Func, typename... Args>
     constexpr bool isInvocable = std::is_invocable_r_v<Return, std::remove_reference_t<Func>, Args...>;
 
+    export template <typename Func, typename... Args>
+    constexpr bool isInvocableAny = std::is_invocable_v<std::remove_reference_t<Func>, Args...>;
+
     export template <typename Return, typename Func, typename... Args>
     constexpr bool isNoexceptInvocable = std::is_nothrow_invocable_r_v<Return, std::remove_reference_t<Func>, Args...>;
+
+    export template <typename Func, typename... Args>
+    constexpr bool isNoexceptInvocableAny = std::is_nothrow_invocable_v<std::remove_reference_t<Func>, Args...>;
+
+    export template <typename Func, typename... Args> requires(isInvocableAny<Func, Args...>)
+    using ReturnType = std::invoke_result_t<std::remove_reference_t<Func>, Args...>;
 
     export template <typename Base, typename Derived>
     constexpr bool isBaseOf = std::is_base_of_v<Base, Derived>;
