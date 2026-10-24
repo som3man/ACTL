@@ -32,6 +32,7 @@ export module ACTL:Array;
 
 import :Defines;
 import :Traits;
+import :Option;
 
 namespace ACTL {
     // A result of a search in array.
@@ -482,20 +483,18 @@ namespace ACTL {
             return data + length;
         }
 
-        // Throws exception if index >= length.
-        constexpr Type& operator [](u32 index) {
+        constexpr Option<Type&> operator [](u32 index) noexcept {
             if (index < length)
                 return data[index];
 
-            throw "Invalid index!";
+            return Void();
         }
 
-        // Throws exception if index >= length.
-        constexpr const Type& operator [](u32 index) const {
+        constexpr Option<const Type&> operator [](u32 index) const noexcept {
             if (index < length)
                 return data[index];
 
-            throw "Invalid index!";
+            return Void();
         }
 
         // Searches for element in array and returns SearchResult.
@@ -612,41 +611,6 @@ namespace ACTL {
     }
 
     static_assert(AllocateAndFreeTest(), "Allocate and Free test is FAILED!");
-
-    class Class {
-    public:
-        i32 data;
-        
-        u32* counter;
-
-        constexpr Class(i32 value, u32& counter) noexcept : data(value), counter(&counter) {
-            counter += 1;
-        }
-
-        constexpr Class(const Class& other) noexcept : data(other.data), counter(other.counter) {
-            (*counter) += 1;
-        }
-
-        constexpr Class(Class&& other) noexcept : data(other.data), counter(other.counter) {
-            (*counter) += 1;
-        }
-
-        constexpr ~Class() noexcept {
-            (*counter) -= 1;
-        }
-
-        constexpr Class& operator =(const Class& other) noexcept {
-            data = other.data;
-
-            return *this;
-        }
-
-        constexpr Class& operator =(Class&& other) noexcept {
-            data = other.data;
-
-            return *this;
-        }
-    };
 
     template <u32 length>
     consteval bool Compare(const Array<Class>& array, const i32 (&values)[length]) {

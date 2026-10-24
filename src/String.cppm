@@ -25,18 +25,17 @@ SOFTWARE.
 module;
 
 #include <algorithm>
-#include <concepts>
-#include <type_traits>
 #include <ostream>
 
 export module ACTL:String;
 
 import :Defines;
 import :Array;
+import :Option;
 
 namespace ACTL {
     // Returns true if UTF-8 sequence is correct.
-    export template <typename Char> requires(sizeof(Char) == 1)
+    export template <typename Char> requires(sizeof(Char) == 1 && isInt<Char>)
     constexpr bool CheckUtf8(const Char* sequence, u8 length) noexcept {
         if (!sequence || !length)
             return false;
@@ -94,7 +93,7 @@ namespace ACTL {
     }
 
     // Returns true if UTF-16 sequence is correct.
-    export template <typename Char> requires(sizeof(Char) == 2)
+    export template <typename Char> requires(sizeof(Char) == 2 && isInt<Char>)
     constexpr bool CheckUtf16(const Char* sequence, u8 length) noexcept {
         if (!sequence || !length)
             return false;
@@ -130,7 +129,7 @@ namespace ACTL {
     }
 
     // Returns true if UTF-32 sequence is correct.
-    export template <typename Char> requires(sizeof(Char) == 4 && std::is_integral_v<Char>)
+    export template <typename Char> requires(sizeof(Char) == 4 && isInt<Char>)
     constexpr bool CheckUtf32(Char symbol) noexcept {
         if (symbol < 0 || symbol > Char(0x10FFFF))
             return false;
@@ -203,49 +202,48 @@ namespace ACTL {
 
         constexpr Symbol& operator =(Symbol&& other) noexcept = default;
 
-        // Constructs from single symbol.
-        // Throws exception if symbol is invalid.
-        template <typename Char> requires(std::is_integral_v<Char>)
-        constexpr Symbol(Char symbol) {
+        template <typename Char> requires(isInt<Char>)
+        static constexpr Option<Symbol> FromChar(Char symbol) noexcept {
             if constexpr (sizeof(Char) == 1) {
                 if (!CheckUtf8(&symbol, 1))
-                    throw "Invalid UTF-8 symbol!";
+                    return Void();
             }
             else if constexpr (sizeof(Char) == 2) {
                 if (!CheckUtf16(&symbol, 1))
-                    throw "Invalid UTF-16 symbol!";
+                    return Void();
             }
             else {
                 if (!CheckUtf32(symbol))
-                    throw "Invalid UTF-32 symbol!";
+                    return Void();
             }
 
-            *this = Convert(&symbol, 1);
+            return Convert(&symbol, 1);
         }
 
-        // Constructs from unit sequence.
-        // Throws exception if sequence is invalid.
-        template <typename Char>
-        constexpr Symbol(Char* sequence, u32 length = 0) noexcept(std::is_same_v<Char, Symbol>) {
-            if (sequence && !length) {
+        template <typename Char> requires(isInt<Char>)
+        static constexpr Option<Symbol> FromSequence(Char* sequence, u32 length = 0) noexcept {
+            if (!sequence)
+                return Void();
+
+            if (!length) {
                 while (sequence[length] && length < 4 / sizeof(Char))
                     length++;
             }
 
-            else if constexpr (sizeof(Char) == 1) {
+            if constexpr (sizeof(Char) == 1) {
                 if (!CheckUtf8(sequence, length))
-                    throw "Invalid UTF-8 symbol!";
+                    return Void();
             }
             else if constexpr (sizeof(Char) == 2) {
                 if (!CheckUtf16(sequence, length))
-                    throw "Invalid UTF-16 symbol!";
+                    return Void();
             }
-            else if constexpr (!std::is_same_v<Char, Symbol>) {
-                if (!sequence || !length || !CheckUtf32(*sequence))
-                    throw "Invalid UTF-32 symbol!";
+            else {
+                if (!CheckUtf32(*sequence))
+                    return Void();
             }
 
-            *this = Convert(sequence, length);
+            return Convert(sequence, length);
         }
 
         constexpr bool operator <=>(const Symbol&) const noexcept = default;
@@ -359,14 +357,14 @@ namespace ACTL {
     export template <typename Type>
     struct Convert {};
 
-    template <std::integral Type>
+    template <typename Type> requires(isInt<Type>)
     struct Convert<Type> {
         Type value;
 
         u8 base = 10;
     };
 
-    template <std::floating_point Type>
+    template <typename Type> requires(isFloat<Type>)
     struct Convert<Type> {
         Type value;
 
@@ -491,9 +489,9 @@ namespace ACTL {
                 return notEmpty();
             }
 
-            constexpr Symbol operator [](u32 index) const {
+            constexpr Option<Symbol> operator [](u32 index) const noexcept {
                 if (index >= symbolLength)
-                    throw "Invalid symbol index!";
+                    return Void();
 
                 index = GetByteIndex(index, begin());
 
@@ -626,9 +624,9 @@ namespace ACTL {
         constexpr String() noexcept {};
 
         // Converts symbols from C-string.
-        // Throws exception if C-string has invalid sequence of UTF units.
+        // Stops copying if invalid sequence of UTF units was spotted.
         template <typename Char>
-        constexpr String(const Char* cstring, u32 limit = 1024) noexcept(std::is_same_v<Char, Symbol>) {
+        constexpr String(const Char* cstring, u32 limit = 1024) noexcept {
             if (!cstring || !limit)
                 return;
 
@@ -647,9 +645,12 @@ namespace ACTL {
 
                 auto l = GetSymLength(*u);
 
-                Symbol s(u, l);
+                auto s = Symbol::FromSequence(u, l);
 
-                s.WriteUtf8(array.begin() + i);
+                if (!s)
+                    break;
+
+                s->WriteUtf8(array.begin() + i);
 
                 i += l;
 
@@ -847,9 +848,9 @@ namespace ACTL {
             symbol.WriteUtf8(array.begin() + index);
         }
 
-        constexpr Symbol operator [](u32 index) const {
+        constexpr Option<Symbol> operator [](u32 index) const noexcept {
             if (index >= symbolLength)
-                throw "Invalid symbol index!";
+                return Void();
 
             index = GetByteIndex(index, begin());
 
@@ -1024,7 +1025,7 @@ namespace ACTL {
             return !operator>=(other);
         }
 
-        template <typename Func> requires(std::is_invocable_v<Func, Symbol>)
+        template <typename Func> requires(isInvocable<void, Func, Symbol>)
         constexpr void Iterate(Func&& func) const noexcept {
             for (u32 i = 0; i < getByteLength();) {
                 auto l = GetSymLength(begin()[i]);
@@ -1049,26 +1050,18 @@ namespace ACTL {
             return *this += other;
         }
 
-        constexpr String& operator <<(char symbol) {
-            return *this << Symbol(symbol);
-        }
-
-        constexpr String& operator <<(wchar_t symbol) {
-            return *this << Symbol(symbol);
-        }
-
         template <typename Char>
-        constexpr String& operator <<(const Char* cstring) noexcept(std::is_same_v<Char, Symbol>) {
+        constexpr String& operator <<(const Char* cstring) noexcept {
             return *this << String(cstring);
         }
 
-        template <std::integral Number> 
+        template <typename Number> requires(isInt<Number>)
         constexpr String& operator <<(Convert<Number> convert) noexcept {
             array.EraseBack();
 
             constexpr char syms[] = "0123456789ABCDEF";
 
-            if constexpr (std::is_signed_v<Number>) {
+            if constexpr (isSigned<Number>) {
                 if (convert.value < 0) {
                     convert.value = -convert.value;
 
@@ -1100,12 +1093,12 @@ namespace ACTL {
             return *this;
         }
 
-        template <std::integral Number>
+        template <typename Number> requires(isInt<Number>)
         constexpr String& operator <<(Number number) noexcept {
             return *this << Convert<Number>(number, 10);
         }
 
-        template <std::floating_point Number>
+        template <typename Number> requires(isFloat<Number>)
         constexpr String& operator <<(Convert<Number> convert) noexcept {
             auto wp = i64(convert.value);
 
@@ -1140,13 +1133,13 @@ namespace ACTL {
             return *this;
         }
 
-        template <std::floating_point Number>
+        template <typename Number> requires(isFloat<Number>)
         constexpr String& operator <<(Number number) noexcept {
             return *this << Convert<Number>(number, 3);
         }
     };
 
-    export template <std::integral Number>
+    export template <typename Number> requires(isInt<Number>)
     constexpr Number& operator <<(Number& number, const String& string) noexcept {
         number = 0;
 
@@ -1155,7 +1148,7 @@ namespace ACTL {
 
         bool n = false;
 
-        if constexpr (std::is_signed_v<Number>)
+        if constexpr (isSigned<Number>)
             n = (string.begin()[0] == '-');
 
         for (u32 i = n; i < string.getByteLength(); i++) {
@@ -1169,7 +1162,7 @@ namespace ACTL {
             number += b - '0';
         }
 
-        if constexpr (std::is_signed_v<Number>) {
+        if constexpr (isSigned<Number>) {
             if (n)
                 number = -number;
         }
@@ -1188,19 +1181,96 @@ namespace ACTL {
 
         return ostream;
     }
+}
+
+export consteval ACTL::Symbol operator ""_sym(char symbol) {
+    auto result = ACTL::Symbol::FromChar(symbol);
+
+    if (!result)
+        throw "Invalid UTF-8 symbol!";
+
+    return result;
+}
+
+export consteval ACTL::Symbol operator ""_sym(const char* sequence, size_t) {
+    auto result = ACTL::Symbol::FromSequence(sequence);
+
+    if (!result)
+        throw "Invalid UTF-8 symbol!";
+
+    return result;
+}
+
+export consteval ACTL::String::View operator ""_str(const char* sequence, size_t) {
+    return ACTL::String::View(sequence);
+}
+
+namespace ACTL {
+    constexpr String& operator <<(String& string, Void) noexcept {
+        return string << "void"_str;
+    }
+
+    export template <typename... Types>
+    constexpr String& operator <<(String& string, const Option<Types...>& option) noexcept {
+        option.Visit(
+            [&](const Types& value) {
+                string << value;
+            }...
+        );
+
+        return string;
+    }
+
+    export template <typename Type>
+    constexpr String& operator <<(String& string, const Option<Type>& option) noexcept {
+        option.Visit(
+            [&](const Type& value) {
+                string << value;
+            },
+            [&]() {
+                string << Void();
+            }
+        );
+
+        return string;
+    }
+
+    export template <typename Type>
+    constexpr String& operator <<(String& string, const Option<Type&>& option) noexcept {
+        option.Visit(
+            [&](const Type& value) {
+                string << value;
+            },
+            [&]() {
+                string << Void();
+            }
+        );
+
+        return string;
+    }
+
+    export template <typename Type>
+    constexpr String& operator <<(String& string, const Array<Type>& array) noexcept {
+        string << "["_str << array.getLength() << "/"_str << array.getCapacity() << "]{ "_str;
+
+        for (auto& i : array)
+            string << i << ", "_str;
+
+        return string << "}"_str;
+    }
 
     consteval bool SymbolConvertTest() {
-        Symbol symbol = '0';
+        Symbol symbol = Symbol::FromChar('0');
 
         if (U'0' != symbol.getUtf32<char32_t>())
             return false;
 
-        symbol = "я";
+        symbol = Symbol::FromSequence("я");
 
         if (U'я' != symbol.getUtf32<char32_t>())
             return false;
 
-        symbol = L'Ч';
+        symbol = Symbol::FromChar(L'Ч');
 
         if (U'Ч' != symbol.getUtf32<char32_t>())
             return false;
@@ -1258,12 +1328,12 @@ namespace ACTL {
     consteval bool StringEmplaceTest() {
         String string = "apple";
 
-        string.EmplaceStrict(0, 'a');
+        string.EmplaceStrict(0, 'a'_sym);
 
         if (!Compare(string, "aapple"))
             return false;
 
-        string.EmplaceStrict(0, "Ї");
+        string.EmplaceStrict(0, "Ї"_sym);
 
         if (!Compare(string, "Їaapple"))
             return false;
@@ -1271,7 +1341,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 7)
             return false;
 
-        string.EmplaceStrict(3, "э");
+        string.EmplaceStrict(3, "э"_sym);
 
         if (!Compare(string, "Їaaэpple"))
             return false;
@@ -1279,7 +1349,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 8)
             return false;
 
-        string.EmplaceBack("ю");
+        string.EmplaceBack("ю"_sym);
 
         if (!Compare(string, "Їaaэppleю"))
             return false;
@@ -1287,7 +1357,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 9)
             return false;
 
-        string.EmplaceStrict(10, '0');
+        string.EmplaceStrict(10, '0'_sym);
 
         if (!Compare(string, "Їaaэppleю00"))
             return false;
@@ -1295,7 +1365,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 11)
             return false;
 
-        string.EmplaceStrict(13, "ц");
+        string.EmplaceStrict(13, "ц"_sym);
 
         if (!Compare(string, "Їaaэppleю00ццц"))
             return false;
@@ -1311,7 +1381,7 @@ namespace ACTL {
     consteval bool StringInsertTest() {
         String string = "ooo";
 
-        string.Insert(0, 2, "Ж");
+        string.Insert(0, 2, "Ж"_sym);
 
         if (!Compare(string, "ЖЖooo"))
             return false;
@@ -1319,7 +1389,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 5)
             return false;
 
-        string.Insert(2, 2, "Ж");
+        string.Insert(2, 2, "Ж"_sym);
 
         if (!Compare(string, "ЖЖЖЖooo"))
             return false;
@@ -1327,7 +1397,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 7)
             return false;
 
-        string.Insert(10, 3, "ї");
+        string.Insert(10, 3, "ї"_sym);
 
         if (!Compare(string, "ЖЖЖЖoooїїї"))
             return false;
@@ -1335,7 +1405,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 10)
             return false;
 
-        string.Insert(4, "щщщ");
+        string.Insert(4, "щщщ"_str);
 
         if (!Compare(string, "ЖЖЖЖщщщoooїїї"))
             return false;
@@ -1343,7 +1413,7 @@ namespace ACTL {
         if (string.getSymbolLength() != 13)
             return false;
 
-        string.Insert(30, "щщщ");
+        string.Insert(30, "щщщ"_str);
 
         if (!Compare(string, "ЖЖЖЖщщщoooїїїщщщ"))
             return false;
@@ -1419,30 +1489,6 @@ namespace ACTL {
     }
 
     static_assert(StringEraseTest(), "String Erase test is FAILED!");
-}
-
-export consteval ACTL::Symbol operator ""_sym(char symbol) {
-    return ACTL::Symbol(symbol);
-}
-
-export consteval ACTL::Symbol operator ""_sym(const char* sequence, size_t) {
-    return ACTL::Symbol(sequence);
-}
-
-export consteval ACTL::String::View operator ""_str(const char* sequence, size_t) {
-    return ACTL::String::View(sequence);
-}
-
-namespace ACTL {
-    export template <typename Type>
-    constexpr String& operator <<(String& string, const Array<Type>& array) noexcept {
-        string << "["_str << array.getLength() << "/"_str << array.getCapacity() << "]{ "_str;
-
-        for (auto& i : array)
-            string << i << ", "_str;
-
-        return string << "}"_str;
-    }
 
     consteval bool StringSetAndGetTest() {
         String string = "maxwell";
@@ -1455,33 +1501,33 @@ namespace ACTL {
 
         string = "Иванович";
 
-        if (string[0] != "И")
+        if (string[0] != "И"_sym)
             return false;
 
-        if (string[4] != "о")
+        if (string[4] != "о"_sym)
             return false;
 
-        string.Set(4, 'w');
+        string.Set(4, 'w'_sym);
 
-        if (string[4] != "w")
+        if (string[4] != "w"_sym)
             return false;
 
-        if (string[6] != "и")
+        if (string[6] != "и"_sym)
             return false;
 
-        string.Set(1, "湖");
+        string.Set(1, "湖"_sym);
 
-        if (string[6] != "и")
+        if (string[6] != "и"_sym)
             return false;
 
         string = "Маksим";
 
-        string.Set(5, 'w');
+        string.Set(5, 'w'_sym);
 
-        if (string[5] != "w")
+        if (string[5] != "w"_sym)
             return false;
 
-        string.Set(8, "ї");
+        string.Set(8, "ї"_sym);
 
         if (!Compare(string, "Маksиwїїї"))
             return false;

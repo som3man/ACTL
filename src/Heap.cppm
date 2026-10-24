@@ -200,20 +200,18 @@ namespace ACTL {
                 return ifVoid();
         }
 
-        // Throws exception if heap is void.
-        constexpr Type& Get() {
+        constexpr Option<Type&> Get() noexcept {
             if (data)
                 return *data;
 
-            throw "Heap is void!";
+            return Void();
         }
 
-        // Throws exception if heap is void.
-        constexpr const Type& Get() const {
+        constexpr Option<const Type&> Get() const noexcept {
             if (data)
                 return *data;
 
-            throw "Heap is void!";
+            return Void();
         }
 
         // Returns new instance if heap is void.
@@ -237,12 +235,12 @@ namespace ACTL {
 
         // Throws exception if heap is void.
         constexpr Type* operator ->() {
-            return &Get();
+            return &*Get();
         }
 
         // Throws exception if heap is void.
         constexpr const Type* operator ->() const {
-            return &Get();
+            return &*Get();
         }
 
         // Throws exception if heap is void.
@@ -419,12 +417,11 @@ namespace ACTL {
             return notVoid();
         }
 
-        // Throws exception if Shared has no reference.
-        constexpr Type& Get() const {
+        constexpr Option<Type&> Get() const noexcept {
             if (cont)
                 return cont->data;
 
-            throw "Shared is void!";
+            return Void();
         }
 
         // Returns new instance if Shared has no reference.
@@ -455,7 +452,7 @@ namespace ACTL {
         }
 
         constexpr Type* operator ->() const {
-            return &Get();
+            return &*Get();
         }
 
         constexpr operator Type& () const {

@@ -11,6 +11,15 @@ namespace ACTL {
     constexpr bool areSame = std::is_same_v<TypeA, TypeB>;
 
     export template <typename Type>
+    constexpr bool isInt = std::is_integral_v<Type>;
+
+    export template <typename Type>
+    constexpr bool isSigned = std::is_signed_v<Type>;
+
+    export template <typename Type>
+    constexpr bool isFloat = std::is_floating_point_v<Type>;
+
+    export template <typename Type>
     constexpr bool isConst = std::is_const_v<Type>;
 
     export template <typename Type>
