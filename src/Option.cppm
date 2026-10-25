@@ -584,6 +584,19 @@ namespace ACTL {
             return *this;
         }
 
+        template <typename Other>
+        constexpr Option& operator =(Other&& other) {
+            if (!pointer)
+                throw AccessError(
+                    AccessError::Cause::UNINITIALIZED, 
+                    "Option is not initialized!"
+                );
+
+            (*pointer) = Forward(other);
+
+            return *this;
+        }
+
         constexpr bool notVoid() const noexcept {
             return pointer;
         }
