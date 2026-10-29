@@ -220,15 +220,40 @@ namespace ACTL {
             return Convert(&symbol, 1);
         }
 
-        template <typename Char> requires(isInt<Char>)
+        template <typename Char> requires(isInt<Char> && sizeof(Char) < 4)
         static constexpr Option<Symbol> FromSequence(Char* sequence, u32 length = 0) noexcept {
-            if (!sequence)
+            if (!sequence || !*sequence)
                 return Void();
 
             if (!length) {
-                while (sequence[length] && length < 4 / sizeof(Char))
-                    length++;
+                if constexpr (sizeof(Char) == 1) {
+                    if ((*sequence & 0x80) == 0)
+                        length = 1;
+                    else if ((*sequence & 0xE0) == 0xC0)
+                        length = 2;
+                    else if ((*sequence & 0xF0) == 0xE0)
+                        length = 3;
+                    else
+                        length = 4;
+                }
+                else if constexpr (sizeof(Char) == 2) {
+                    if (*sequence >= 0xD800 && *sequence <= 0xDBFF)
+                        length = 2;
+                    else
+                        length = 1;
+                }
+                else {
+                    length = 1;
+                }
             }
+
+            u8 unitCount = 0;
+
+            while (sequence[unitCount] && unitCount < 4)
+                unitCount += 1;
+
+            if (unitCount < length)
+                return ACTL::Void();
 
             if constexpr (sizeof(Char) == 1) {
                 if (!CheckUtf8(sequence, length))
