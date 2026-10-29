@@ -497,6 +497,34 @@ namespace ACTL {
             return Void();
         }
 
+        constexpr Option<Type&> first() noexcept {
+            if (begin())
+                return *begin();
+
+            return ACTL::Void();
+        }
+
+        constexpr Option<const Type&> first() const noexcept {
+            if (begin())
+                return *begin();
+
+            return ACTL::Void();
+        }
+
+        constexpr Option<Type&> last() noexcept {
+            if (end())
+                return *(end() - 1);
+
+            return ACTL::Void();
+        }
+
+        constexpr Option<const Type&> last() const noexcept {
+            if (end())
+                return *(end() - 1);
+
+            return ACTL::Void();
+        }
+
         // Searches for element in array and returns SearchResult.
         constexpr SearchResult Find(const Type& value) const noexcept {
             if (!length)
